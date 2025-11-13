@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { addProduct, updateProduct, deleteProduct, toggleProductStatus, setSelectedProduct, clearSelectedProduct, setProducts, } from "../../redux/productSlice";
-import ProductModal from "../components/ProductModal";
+import ProductModal from "../components/productModal";
 import { Edit, Trash2, Plus, Search } from "lucide-react";
 import toast from "react-hot-toast";
 
