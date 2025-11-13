@@ -1,9 +1,6 @@
 // src/admin/pages/Dashboard.jsx
 import React from "react";
-import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
-  LineChart, Line
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, LineChart, Line } from "recharts";
 import { Users, ShoppingCart, DollarSign, TrendingUp } from "lucide-react";
 
 export default function Dashboard() {
