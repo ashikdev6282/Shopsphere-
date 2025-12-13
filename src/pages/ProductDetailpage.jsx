@@ -41,7 +41,7 @@ export default function ProductDetailsPage() {
       try {
         const doc = await fetchProductById(id);
         if (!cancelled) {
-          if (doc) {
+          if (doc) { 
             setProduct(doc);
             dispatch(setSelectedProduct(doc));
             // keep Redux in sync (optional)
