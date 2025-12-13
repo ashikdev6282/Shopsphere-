@@ -7,6 +7,7 @@ import AdminProducts from "../pages/AdminProduct";
 import AdminOrders from "../pages/AdminOrders";
 import AdminCustomers from "../pages/AdminCustomer";
 import AdminSettings from "../pages/AdminSettings";
+import AdminProductsQA from "../pages/AdminProductQA";
 
 
 export default function AdminRoutes() {
@@ -18,6 +19,7 @@ export default function AdminRoutes() {
                 <Route path="/adminorder" element={<AdminProtectedRoute><AdminOrders /></AdminProtectedRoute>} />
                 <Route path="/customers" element={<AdminProtectedRoute><AdminCustomers /></AdminProtectedRoute>} />
                 <Route path="/settings" element={<AdminProtectedRoute><AdminSettings /></AdminProtectedRoute>} />
+                <Route path="/productsQA" element={<AdminProtectedRoute><AdminProductsQA /></AdminProtectedRoute>} />
             </Routes>
         </AdminLayout>
     )

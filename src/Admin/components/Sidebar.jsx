@@ -28,6 +28,7 @@ export default function Sidebar() {
     { path: "/admin/adminorder", label: "Orders", icon: <FiShoppingCart /> },
     { path: "/admin/customers", label: "Customers", icon: <FiUsers /> },
     { path: "/admin/settings", label: "Settings", icon: <FiSettings /> },
+    { path: "/admin/productsQA", label: "Product Q&A", icon: <FiBox /> },
   ];
 
   return (

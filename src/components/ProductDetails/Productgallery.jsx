@@ -1,14 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 
-const images = [
-  "/images/product1.jpg",
-  "/images/product2.jpg",
-  "/images/product3.jpg",
-  "/images/product4.jpg",
-];
+export default function ProductGallery({ product }) {
+  // Support both a single image or an array of images
+  const imageList = Array.isArray(product.images)
+    ? product.images
+    : product.image
+    ? [product.image]
+    : ["/images/fallback.jpg"];
 
-export default function ProductGallery() {
-  const [selectedImage, setSelectedImage] = useState(images[0]);
+  const [selectedImage, setSelectedImage] = useState(imageList[0]);
+
+  useEffect(() => {
+    // Reset selected image whenever the product changes
+    setSelectedImage(imageList[0]);
+  }, [product]);
 
   return (
     <div className="flex flex-col items-center">
@@ -22,23 +27,25 @@ export default function ProductGallery() {
       </div>
 
       {/* Thumbnails */}
-      <div className="flex gap-4 mt-6">
-        {images.map((img, idx) => (
-          <button
-            key={idx}
-            onClick={() => setSelectedImage(img)}
-            className={`w-20 h-20 rounded-xl overflow-hidden border-2 ${
-              selectedImage === img ? "border-blue-500" : "border-gray-700"
-            }`}
-          >
-            <img
-              src={img}
-              alt={`Thumbnail ${idx + 1}`}
-              className="w-full h-full object-cover"
-            />
-          </button>
-        ))}
-      </div>
+      {imageList.length > 1 && (
+        <div className="flex gap-4 mt-6">
+          {imageList.map((img, idx) => (
+            <button
+              key={idx}
+              onClick={() => setSelectedImage(img)}
+              className={`w-20 h-20 rounded-xl overflow-hidden border-2 ${
+                selectedImage === img ? "border-blue-500" : "border-gray-700"
+              }`}
+            >
+              <img
+                src={img}
+                alt={`Thumbnail ${idx + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
