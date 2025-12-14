@@ -3,21 +3,34 @@ import "./usersupportchat.css";
 import { FiSend, FiMessageSquare, FiX } from "react-icons/fi";
 
 const UserSupportChat = ({ user }) => {
+  // Safe user ID (Firebase or Redux)
+  const userId = user?.id || user?.uid || null;
+
+  // If user not logged in → do NOT show chat
+  if (!userId) return null;
+
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState(
-    JSON.parse(localStorage.getItem(`chat_${user.id}`)) || []
-  );
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem(`chat_${userId}`)) || [];
+    } catch {
+      return [];
+    }
+  });
+
   const [input, setInput] = useState("");
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef(null);
 
-  // Scroll to bottom on new messages
+  // Auto scroll
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
   const handleSend = () => {
     if (!input.trim()) return;
+
     const newMessage = {
       id: Date.now(),
       sender: "user",
@@ -26,29 +39,31 @@ const UserSupportChat = ({ user }) => {
     };
 
     const updatedMessages = [...messages, newMessage];
+
     setMessages(updatedMessages);
-    localStorage.setItem(`chat_${user.id}`, JSON.stringify(updatedMessages));
+    localStorage.setItem(`chat_${userId}`, JSON.stringify(updatedMessages));
     setInput("");
 
-    // Simulate admin typing + response
+    // Fake admin reply
     setIsTyping(true);
     setTimeout(() => {
       const reply = {
         id: Date.now() + 1,
         sender: "admin",
-        text: "Thanks for reaching out! We'll respond shortly.",
+        text: "Thank you! Support will reply shortly.",
         time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
+
       const newChat = [...updatedMessages, reply];
       setMessages(newChat);
-      localStorage.setItem(`chat_${user.id}`, JSON.stringify(newChat));
+      localStorage.setItem(`chat_${userId}`, JSON.stringify(newChat));
       setIsTyping(false);
-    }, 2000);
+    }, 1500);
   };
 
   return (
     <div className="support-chat-wrapper">
-      {/* Floating button */}
+
       <button
         className={`chat-toggle-btn ${isOpen ? "active" : ""}`}
         onClick={() => setIsOpen(!isOpen)}
@@ -56,7 +71,6 @@ const UserSupportChat = ({ user }) => {
         {isOpen ? <FiX size={20} /> : <FiMessageSquare size={22} />}
       </button>
 
-      {/* Chat box */}
       {isOpen && (
         <div className="chat-box glass-card">
           <div className="chat-header">
@@ -70,6 +84,7 @@ const UserSupportChat = ({ user }) => {
                 <div className="msg-time">{msg.time}</div>
               </div>
             ))}
+
             {isTyping && (
               <div className="chat-msg admin typing-indicator">
                 <div className="msg-text">
@@ -77,6 +92,7 @@ const UserSupportChat = ({ user }) => {
                 </div>
               </div>
             )}
+
             <div ref={messagesEndRef} />
           </div>
 

@@ -1,72 +1,139 @@
-import React, { useState, useEffect } from "react";
-import { Moon, Sun, Globe, Shield, Save, Upload } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { Moon, Sun, Globe, Shield, Save, Upload, LogOut } from "lucide-react";
 import { toast } from "react-hot-toast";
+import Swal from "sweetalert2";
+import { useSelector, useDispatch } from "react-redux";
+import { signOut } from "firebase/auth";
+import { auth, db } from "../../firebase/firebase_config";
+import { doc, updateDoc } from "firebase/firestore";
+import { clearUser } from "../../redux/authSlice";
+import { useNavigate } from "react-router-dom";
 
-export default function Settings() {
+export default function AdminSettings() {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
+
+  // 🔥 Admin from Redux (Firestore-backed)
+  const admin = useSelector((state) => state.auth.user);
+
   const [profile, setProfile] = useState({
-    name: "Admin User",
-    email: "admin@example.com",
+    name: "",
+    email: "",
     avatar: "",
   });
 
   const [theme, setTheme] = useState("light");
   const [language, setLanguage] = useState("en");
-  const [accentColor, setAccentColor] = useState("blue");
-  const [notifications, setNotifications] = useState({
-    system: true,
-    messages: true,
-    orders: true,
-    security: false,
-  });
   const [twoFactor, setTwoFactor] = useState(false);
 
+  /* ================= LOAD ADMIN PROFILE ================= */
   useEffect(() => {
-    if (theme === "dark") document.documentElement.classList.add("dark");
-    else document.documentElement.classList.remove("dark");
+    if (admin) {
+      setProfile({
+        name: admin.name || "",
+        email: admin.email || "",
+        avatar: admin.avatar || "",
+      });
+    }
+  }, [admin]);
+
+  /* ================= THEME HANDLING ================= */
+  useEffect(() => {
+    if (theme === "dark") {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
   }, [theme]);
 
+  /* ================= PROFILE CHANGE ================= */
   const handleProfileChange = (e) => {
     setProfile({ ...profile, [e.target.name]: e.target.value });
   };
 
-  const handleSave = () => {
-    toast.success("Settings saved successfully!");
-  };
-
   const handleAvatarUpload = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setProfile({ ...profile, avatar: reader.result });
-        toast.success("Profile photo updated!");
-      };
-      reader.readAsDataURL(file);
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfile((prev) => ({ ...prev, avatar: reader.result }));
+      toast.success("Avatar updated (local)");
+    };
+    reader.readAsDataURL(file);
+  };
+
+  /* ================= SAVE PROFILE ================= */
+  const handleSave = async () => {
+    try {
+      await updateDoc(doc(db, "users", admin.uid), {
+        name: profile.name,
+        avatar: profile.avatar,
+      });
+
+      toast.success("Admin profile updated successfully");
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to update profile");
     }
   };
 
+  /* ================= LOGOUT ================= */
+  const handleLogout = async () => {
+    const result = await Swal.fire({
+      title: "Logout Admin?",
+      text: "You will be logged out from the admin dashboard.",
+      icon: "warning",
+      showCancelButton: true,
+      confirmButtonColor: "#dc2626",
+      cancelButtonColor: "#6b7280",
+      confirmButtonText: "Yes, Logout",
+    });
+
+    if (!result.isConfirmed) return;
+
+    try {
+      await signOut(auth);
+      dispatch(clearUser());
+      toast.success("Logged out successfully");
+      navigate("/login");
+    } catch (error) {
+      console.error(error);
+      toast.error("Logout failed");
+    }
+  };
+
+  if (!admin) {
+    return (
+      <div className="p-10 text-center text-gray-400">
+        Loading admin settings...
+      </div>
+    );
+  }
+
   return (
-    <div className="p-8 text-gray-900 dark:text-gray-100 transition-all duration-300">
+    <div className="p-8 text-gray-900 dark:text-gray-100 transition-all">
       <h2 className="text-3xl font-semibold mb-6">⚙️ Admin Settings</h2>
 
-      {/* ===== Profile Section ===== */}
-      <div className="glass-card mb-8 p-6 rounded-2xl shadow-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold mb-4">Profile Information</h3>
+      {/* ================= PROFILE ================= */}
+      <div className="mb-8 p-6 rounded-2xl bg-white/60 dark:bg-gray-800/60 backdrop-blur border">
+        <h3 className="text-xl font-semibold mb-4">Admin Profile</h3>
 
         <div className="flex items-center gap-6 mb-4">
           <img
-            src={profile.avatar || "https://via.placeholder.com/80"}
+            src={profile.avatar || "https://via.placeholder.com/100"}
             alt="Admin Avatar"
-            className="w-20 h-20 rounded-full object-cover border-2 border-gray-300 dark:border-gray-600"
+            className="w-24 h-24 rounded-full object-cover border"
           />
-          <label className="cursor-pointer text-blue-600 hover:underline text-sm">
+          <label className="cursor-pointer text-blue-600 text-sm">
             <input
               type="file"
-              className="hidden"
-              onChange={handleAvatarUpload}
+              hidden
               accept="image/*"
+              onChange={handleAvatarUpload}
             />
-            <Upload className="inline-block w-4 h-4 mr-1" /> Change Photo
+            <Upload className="inline w-4 h-4 mr-1" />
+            Change Photo
           </label>
         </div>
 
@@ -77,144 +144,75 @@ export default function Settings() {
             value={profile.name}
             onChange={handleProfileChange}
             placeholder="Admin Name"
-            className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-full"
+            className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700"
           />
           <input
             type="email"
-            name="email"
             value={profile.email}
-            onChange={handleProfileChange}
-            placeholder="Email Address"
-            className="p-3 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-gray-100 w-full"
+            disabled
+            className="p-3 rounded-lg bg-gray-200 dark:bg-gray-700 cursor-not-allowed"
           />
         </div>
       </div>
 
-      {/* ===== Preferences Section ===== */}
-      <div className="glass-card mb-8 p-6 rounded-2xl shadow-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-gray-200 dark:border-gray-700">
+      {/* ================= PREFERENCES ================= */}
+      <div className="mb-8 p-6 rounded-2xl bg-white/60 dark:bg-gray-800/60 backdrop-blur border">
         <h3 className="text-xl font-semibold mb-4">Preferences</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-          <div className="flex items-center gap-3">
-            {theme === "dark" ? (
-              <Sun
-                className="cursor-pointer"
-                onClick={() => setTheme("light")}
-              />
-            ) : (
-              <Moon
-                className="cursor-pointer"
-                onClick={() => setTheme("dark")}
-              />
-            )}
-            <span>
-              {theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
-            </span>
-          </div>
 
-          <div className="flex items-center gap-3">
-            <Globe />
-            <select
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-            >
-              <option value="en">English</option>
-              <option value="hi">Hindi</option>
-              <option value="es">Spanish</option>
-            </select>
-          </div>
+        <div className="flex items-center gap-6 mb-4">
+          {theme === "dark" ? (
+            <Sun onClick={() => setTheme("light")} className="cursor-pointer" />
+          ) : (
+            <Moon onClick={() => setTheme("dark")} className="cursor-pointer" />
+          )}
+          <span>
+            {theme === "dark" ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          </span>
+        </div>
 
-          <div className="flex items-center gap-3">
-            🎨
-            <select
-              value={accentColor}
-              onChange={(e) => setAccentColor(e.target.value)}
-              className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-            >
-              <option value="blue">Blue</option>
-              <option value="emerald">Emerald</option>
-              <option value="purple">Purple</option>
-              <option value="rose">Rose</option>
-            </select>
-            <span>Accent Color</span>
-          </div>
+        <div className="flex items-center gap-4">
+          <Globe />
+          <select
+            value={language}
+            onChange={(e) => setLanguage(e.target.value)}
+            className="p-2 rounded-lg bg-gray-100 dark:bg-gray-700"
+          >
+            <option value="en">English</option>
+            <option value="hi">Hindi</option>
+          </select>
         </div>
       </div>
 
-      {/* ===== Notification Settings ===== */}
-      <div className="glass-card mb-8 p-6 rounded-2xl shadow-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-gray-200 dark:border-gray-700">
-        <h3 className="text-xl font-semibold mb-4">Notifications</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {Object.entries(notifications).map(([key, value]) => (
-            <label key={key} className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={value}
-                onChange={() =>
-                  setNotifications({ ...notifications, [key]: !value })
-                }
-                className="w-4 h-4 accent-blue-600"
-              />
-              <span className="capitalize">
-                {key.replace(/([A-Z])/g, " $1")}
-              </span>
-            </label>
-          ))}
-        </div>
-      </div>
-
-      {/* ===== Security Section ===== */}
-      <div className="glass-card mb-8 p-6 rounded-2xl shadow-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-gray-200 dark:border-gray-700">
+      {/* ================= SECURITY ================= */}
+      <div className="mb-8 p-6 rounded-2xl bg-white/60 dark:bg-gray-800/60 backdrop-blur border">
         <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
           <Shield /> Security
         </h3>
-        <label className="flex items-center gap-3 mb-3">
+
+        <label className="flex items-center gap-3">
           <input
             type="checkbox"
             checked={twoFactor}
             onChange={() => setTwoFactor(!twoFactor)}
-            className="w-4 h-4 accent-green-600"
           />
           Enable Two-Factor Authentication
         </label>
-
-        <button
-          onClick={() => toast.success("Password reset link sent to email!")}
-          className="mt-2 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition"
-        >
-          Reset Password
-        </button>
       </div>
 
-      {/* ===== Data & Activity Section ===== */}
-      <div className="glass-card p-6 rounded-2xl shadow-lg bg-white/60 dark:bg-gray-800/60 backdrop-blur-xl border border-gray-200 dark:border-gray-700 mb-20">
-        <h3 className="text-xl font-semibold mb-4">Data Management</h3>
-        <div className="flex flex-wrap gap-4">
-          <button className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg text-white transition">
-            Export Data
-          </button>
-          <button
-            onClick={() => toast.error("All data reset (simulation).")}
-            className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg text-white transition"
-          >
-            Reset Data
-          </button>
-        </div>
-
-        <div className="mt-6 text-sm text-gray-600 dark:text-gray-400 border-t border-gray-300 dark:border-gray-600 pt-3">
-          <p>Last Login: Oct 8, 2025, 9:23 AM</p>
-          <p>Device: Chrome on Windows</p>
-          <p>IP: 192.168.1.24</p>
-        </div>
-      </div>
-
-      {/* Floating Save Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      {/* ================= ACTION BUTTONS ================= */}
+      <div className="flex flex-wrap gap-4">
         <button
           onClick={handleSave}
-          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-full shadow-xl transition-transform hover:scale-105"
+          className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 px-6 py-3 rounded-lg text-white"
         >
-          <Save size={18} /> Save All Changes
+          <Save size={18} /> Save Changes
+        </button>
+
+        <button
+          onClick={handleLogout}
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg text-white"
+        >
+          <LogOut size={18} /> Logout Admin
         </button>
       </div>
     </div>

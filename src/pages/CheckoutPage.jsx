@@ -1,44 +1,40 @@
 // src/pages/CheckoutPage.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setSameAsBilling, setPaymentMethod, updateBilling, updateShipping, setBuyNowItem, } from "../redux/checkoutSlice";
-import { clearCart } from "../redux/cartSlice"; // assumes you have this action
+import { setSameAsBilling, setPaymentMethod, updateBilling, updateShipping, setBuyNowItem,} from "../redux/checkoutSlice";
+import { clearCart } from "../redux/cartSlice";
 import { CheckCircle2 } from "lucide-react";
 import Confetti from "react-confetti";
 import toast from "react-hot-toast";
 import { createOrder } from "../firebase/services/orderService";
 import { auth } from "../firebase/firebase_config";
 
+/** Simple validator */
+const isEmpty = (str) => !str || str.trim().length === 0;
+
 export default function CheckoutPage() {
   const dispatch = useDispatch();
-  const {
-    sameAsBilling,
-    paymentMethod,
-    billing,
-    shipping,
-    buyNowItem,
-  } = useSelector((state) => state.checkout);
+  const { sameAsBilling, paymentMethod, billing, shipping, buyNowItem } =
+    useSelector((state) => state.checkout);
   const cartItems = useSelector((state) => state.cart.items || []);
 
   const [showSuccess, setShowSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({}); // validation
 
-  // Restore buyNowItem from localStorage if missing
+  // Restore Buy Now
   useEffect(() => {
     const savedBuyNow = localStorage.getItem("buyNowData");
     if (!buyNowItem && savedBuyNow) {
       try {
         dispatch(setBuyNowItem(JSON.parse(savedBuyNow)));
-      } catch (err) {
-        console.warn("Invalid buyNowData in localStorage", err);
-      }
+      } catch {}
     }
   }, [buyNowItem, dispatch]);
 
-  // Choose items: BuyNow or Cart
   const items = buyNowItem ? [buyNowItem] : cartItems;
 
-  // Calculate order summary dynamically
+  /** ORDER SUMMARY */
   const orderSummary = useMemo(() => {
     const subtotal = items.reduce(
       (sum, item) => sum + item.price * (item.quantity || item.qty || 1),
@@ -53,38 +49,67 @@ export default function CheckoutPage() {
     };
   }, [items]);
 
-  // Load Razorpay SDK if needed
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      if (window.Razorpay) return resolve(true);
-      const script = document.createElement("script");
-      script.src = "https://checkout.razorpay.com/v1/checkout.js";
-      script.async = true;
-      script.onload = () => resolve(true);
-      script.onerror = () => resolve(false);
-      document.body.appendChild(script);
-    });
+  /** VALIDATION */
+  const validateFields = () => {
+    const newErr = {};
+
+    // Billing Fields
+    if (isEmpty(billing.fullName)) newErr.fullName = "Name is required";
+    if (isEmpty(billing.email)) newErr.email = "Email is required";
+    if (isEmpty(billing.phone)) newErr.phone = "Phone is required";
+    if (isEmpty(billing.address)) newErr.address = "Address is required";
+    if (isEmpty(billing.city)) newErr.city = "City is required";
+    if (isEmpty(billing.zip)) newErr.zip = "Zip code required";
+
+    // Shipping Fields if different
+    if (!sameAsBilling) {
+      if (isEmpty(shipping.fullName)) newErr.shipFullName = "Name required";
+      if (isEmpty(shipping.phone)) newErr.shipPhone = "Phone required";
+      if (isEmpty(shipping.address)) newErr.shipAddress = "Address required";
+      if (isEmpty(shipping.city)) newErr.shipCity = "City required";
+      if (isEmpty(shipping.zip)) newErr.shipZip = "Zip required";
+    }
+
+    setErrors(newErr);
+    return Object.keys(newErr).length === 0; // true if no errors
   };
 
-  // create order in Firestore
+  /** Load Razorpay */
+  const loadRazorpayScript = () =>
+    new Promise((res) => {
+      if (window.Razorpay) return res(true);
+      const s = document.createElement("script");
+      s.src = "https://checkout.razorpay.com/v1/checkout.js";
+      s.onload = () => res(true);
+      s.onerror = () => res(false);
+      document.body.appendChild(s);
+    });
+
+  /** Save Final Order Into Firestore */
   const placeOrderToFirestore = async (opts) => {
     const user = auth.currentUser;
+
     const orderPayload = {
       userId: user?.uid || "guest",
-      customerName: (sameAsBilling ? billing.fullName : shipping.fullName) || billing.fullName || "Guest",
-      customerEmail: billing.email || null,
-      customerPhone: billing.phone || shipping.phone || null,
-      status: opts?.status || "Pending",
-      paymentStatus: opts?.paymentStatus || "Pending",
-      paymentMethod: paymentMethod || "cod",
-      paymentId: opts?.paymentId || null,
+      customerName:
+        (sameAsBilling ? billing.fullName : shipping.fullName) ||
+        billing.fullName ||
+        "Guest",
+      customerEmail: billing.email,
+      customerPhone: billing.phone || shipping.phone,
+      status: opts.status || "Pending",
+      paymentStatus: opts.paymentStatus || "Pending",
+      paymentMethod,
+      paymentId: opts.paymentId || null,
       totalAmount: orderSummary.total,
+
       items: orderSummary.items.map((it) => ({
-        productId: it.id || it.productId || null,
+        productId: it.id,
         name: it.name,
         price: it.price,
         quantity: it.quantity || it.qty || 1,
       })),
+
       shippingAddress: {
         fullName: sameAsBilling ? billing.fullName : shipping.fullName,
         phone: sameAsBilling ? billing.phone : shipping.phone,
@@ -92,284 +117,293 @@ export default function CheckoutPage() {
         city: sameAsBilling ? billing.city : shipping.city,
         zip: sameAsBilling ? billing.zip : shipping.zip,
       },
-      createdAt: new Date().toISOString(), // orderService will set serverTimestamp as well, but keep readable client timestamp
+
+      createdAt: new Date().toISOString(),
     };
 
     const orderId = await createOrder(orderPayload);
     return orderId;
   };
 
-  // Razorpay Payment Handler
+  /** RAZORPAY HANDLER */
   const handleRazorpayPayment = async () => {
     setLoading(true);
     const ok = await loadRazorpayScript();
     if (!ok) {
+      toast.error("Payment SDK failed to load");
       setLoading(false);
-      toast.error("Failed to load payment gateway. Try again.");
       return;
     }
 
-    const RAZORPAY_KEY = import.meta.env.VITE_RAZORPAY_KEY || "rzp_test_xxxxxxxx";
+    const key = import.meta.env.VITE_RAZORPAY_KEY || "rzp_test_xxxxxxxx";
 
     const options = {
-      key: RAZORPAY_KEY,
-      amount: Math.round(orderSummary.total * 100), // paise
+      key,
+      amount: Math.round(orderSummary.total * 100),
       currency: "INR",
       name: "ShopSphere",
       description: "Order Payment",
-      handler: async function (response) {
-        // response.razorpay_payment_id etc.
+
+      handler: async (response) => {
         try {
-          // create order with payment marked as Paid
-          await placeOrderToFirestore({
+          const orderId = await placeOrderToFirestore({
             status: "Processing",
             paymentStatus: "Paid",
             paymentId: response.razorpay_payment_id,
           });
 
-          // clear cart / buyNow
           dispatch(clearCart());
           dispatch(setBuyNowItem(null));
           localStorage.removeItem("buyNowData");
 
-          toast.success("Payment successful — order placed 🎉");
-          setShowSuccess(true);
-          setTimeout(() => setShowSuccess(false), 5000);
+          toast.success("Payment successful 🎉");
+          setShowSuccess(orderId);
         } catch (err) {
-          console.error("Error saving order after payment:", err);
-          toast.error("Payment succeeded but saving order failed. Contact support.");
+          toast.error("Payment succeeded but order saving failed");
         } finally {
           setLoading(false);
         }
       },
+
       prefill: {
-        name: billing.fullName || "Customer",
-        email: billing.email || "",
-        contact: billing.phone || "",
+        name: billing.fullName,
+        email: billing.email,
+        contact: billing.phone,
       },
       theme: { color: "#4CAF50" },
     };
 
-    try {
-      const rzp = new window.Razorpay(options);
-      rzp.open();
-    } catch (err) {
-      console.error("Razorpay open failed", err);
-      toast.error("Payment popup failed to open.");
-      setLoading(false);
-    }
+    const rzp = new window.Razorpay(options);
+    rzp.open();
   };
 
-  // Place Order (entry point)
+  /** PLACE ORDER ENTRY */
   const handlePlaceOrder = async () => {
-    if (items.length === 0) {
-      toast.error("Your cart is empty!");
+    if (!validateFields()) {
+      toast.error("Please correct the highlighted fields.");
       return;
     }
 
     if (paymentMethod === "razorpay") {
-      // start Razorpay flow
       await handleRazorpayPayment();
       return;
     }
 
-    // Cash on Delivery flow: create pending order in Firestore
+    // COD
     setLoading(true);
     try {
-      await placeOrderToFirestore({
+      const orderId = await placeOrderToFirestore({
         status: "Pending",
         paymentStatus: "Pending",
         paymentId: null,
       });
 
-      // clear cart / buyNow
       dispatch(clearCart());
       dispatch(setBuyNowItem(null));
       localStorage.removeItem("buyNowData");
 
-      toast.success("Order placed (Cash on Delivery) 🎉");
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 5000);
+      toast.success("Order placed (COD)");
+      setShowSuccess(orderId);
     } catch (err) {
-      console.error("Place order failed:", err);
-      toast.error("Failed to place order. Try again.");
+      toast.error("Order placement failed");
     } finally {
       setLoading(false);
     }
   };
 
+  /** iOS Soft Button Style */
+  const softButton =
+    "w-full py-3 rounded-2xl bg-gray-100 text-gray-900 font-semibold shadow-[0_4px_10px_rgba(255,255,255,0.1)] hover:shadow-[0_4px_14px_rgba(255,255,255,0.2)] active:scale-95 transition text-center";
+
   return (
     <div className="min-h-screen bg-gradient-to-r from-gray-900 via-gray-800 to-black text-gray-100">
-      {/* Success Modal */}
       {showSuccess && (
         <>
           <Confetti />
-          <div className="fixed inset-0 flex items-center justify-center bg-black/70 z-50">
+          <div className="fixed inset-0 flex items-center justify-center bg-black/60 z-50">
             <div className="bg-gray-800 rounded-2xl p-8 text-center shadow-2xl max-w-lg w-full">
-              <CheckCircle2 className="mx-auto w-20 h-20 text-green-400 animate-bounce mb-4" />
-              <h2 className="text-2xl font-bold text-white mb-2">Order Confirmed!</h2>
-              <p className="text-gray-400">Thank you for your purchase 🎉</p>
+              <CheckCircle2 className="mx-auto w-20 h-20 text-green-400 mb-4" />
+              <h2 className="text-2xl font-bold mb-2">Order Confirmed!</h2>
+              <p className="text-gray-400 mb-3">Thank you for your purchase 🎉</p>
+              <p className="text-gray-300 text-sm">
+                Order ID: <span className="text-green-400">{showSuccess}</span>
+              </p>
             </div>
           </div>
         </>
       )}
 
       <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 px-6 py-10">
-        {/* Left Section */}
+        
+        {/* LEFT SIDE */}
         <div className="lg:col-span-2 space-y-8">
-          {/* Billing */}
-          <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4 text-white">Billing Details</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <input
-                type="text"
-                placeholder="Full Name"
-                value={billing.fullName || ""}
-                onChange={(e) => dispatch(updateBilling({ fullName: e.target.value }))}
-                className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-              />
-              <input
-                type="email"
-                placeholder="Email Address"
-                value={billing.email || ""}
-                onChange={(e) => dispatch(updateBilling({ email: e.target.value }))}
-                className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-              />
-              <input
-                type="text"
-                placeholder="Phone Number"
-                value={billing.phone || ""}
-                onChange={(e) => dispatch(updateBilling({ phone: e.target.value }))}
-                className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-              />
-              <input
-                type="text"
-                placeholder="Street Address"
-                value={billing.address || ""}
-                onChange={(e) => dispatch(updateBilling({ address: e.target.value }))}
-                className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full md:col-span-2"
-              />
-              <input
-                type="text"
-                placeholder="City"
-                value={billing.city || ""}
-                onChange={(e) => dispatch(updateBilling({ city: e.target.value }))}
-                className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-              />
-              <input
-                type="text"
-                placeholder="ZIP / Postal Code"
-                value={billing.zip || ""}
-                onChange={(e) => dispatch(updateBilling({ zip: e.target.value }))}
-                className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-              />
-            </div>
-          </div>
 
-          {/* Shipping */}
-          <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6">
+          {/* BILLING */}
+          <section className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6">
+            <h2 className="text-xl font-semibold mb-4">Billing Details</h2>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {[
+                ["fullName", "Full Name"],
+                ["email", "Email Address"],
+                ["phone", "Phone Number"],
+                ["address", "Street Address"],
+                ["city", "City"],
+                ["zip", "ZIP / Postal Code"],
+              ].map(([field, label], idx) => (
+                <div key={field} className={idx === 3 ? "md:col-span-2" : ""}>
+                  <input
+                    type="text"
+                    placeholder={label}
+                    value={billing[field] || ""}
+                    onChange={(e) =>
+                      dispatch(updateBilling({ [field]: e.target.value }))
+                    }
+                    className={`w-full px-3 py-2 bg-gray-900/60 border ${
+                      errors[field] ? "border-red-500" : "border-gray-700"
+                    } text-gray-200 rounded-lg`}
+                  />
+                  {errors[field] && (
+                    <p className="text-red-400 text-xs mt-1">{errors[field]}</p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* SHIPPING */}
+          <section className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-white">Shipping Address</h2>
-              <label className="flex items-center space-x-2 text-sm text-gray-300">
-                <input type="checkbox" checked={sameAsBilling} onChange={(e) => dispatch(setSameAsBilling(e.target.checked))} />
+              <h2 className="text-xl font-semibold">Shipping Address</h2>
+              <label className="flex items-center space-x-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={sameAsBilling}
+                  onChange={(e) => dispatch(setSameAsBilling(e.target.checked))}
+                />
                 <span>Same as billing</span>
               </label>
             </div>
 
             {!sameAsBilling && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  placeholder="Full Name"
-                  value={shipping.fullName || ""}
-                  onChange={(e) => dispatch(updateShipping({ fullName: e.target.value }))}
-                  className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-                />
-                <input
-                  type="text"
-                  placeholder="Phone Number"
-                  value={shipping.phone || ""}
-                  onChange={(e) => dispatch(updateShipping({ phone: e.target.value }))}
-                  className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-                />
-                <input
-                  type="text"
-                  placeholder="Street Address"
-                  value={shipping.address || ""}
-                  onChange={(e) => dispatch(updateShipping({ address: e.target.value }))}
-                  className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full md:col-span-2"
-                />
-                <input
-                  type="text"
-                  placeholder="City"
-                  value={shipping.city || ""}
-                  onChange={(e) => dispatch(updateShipping({ city: e.target.value }))}
-                  className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-                />
-                <input
-                  type="text"
-                  placeholder="ZIP / Postal Code"
-                  value={shipping.zip || ""}
-                  onChange={(e) => dispatch(updateShipping({ zip: e.target.value }))}
-                  className="bg-gray-900/60 border border-gray-700 text-gray-200 p-3 rounded-lg w-full"
-                />
+                {[
+                  ["shipFullName", "Full Name"],
+                  ["shipPhone", "Phone Number"],
+                  ["shipAddress", "Street Address"],
+                  ["shipCity", "City"],
+                  ["shipZip", "ZIP / Postal Code"],
+                ].map(([field, label], idx) => (
+                  <div key={field} className={idx === 2 ? "md:col-span-2" : ""}>
+                    <input
+                      type="text"
+                      placeholder={label}
+                      value={
+                        shipping[field.replace("ship", "").toLowerCase()] || ""
+                      }
+                      onChange={(e) =>
+                        dispatch(
+                          updateShipping({
+                            [field.replace("ship", "").toLowerCase()]:
+                              e.target.value,
+                          })
+                        )
+                      }
+                      className={`w-full px-3 py-2 bg-gray-900/60 border ${
+                        errors[field] ? "border-red-500" : "border-gray-700"
+                      } text-gray-200 rounded-lg`}
+                    />
+                    {errors[field] && (
+                      <p className="text-red-400 text-xs mt-1">
+                        {errors[field]}
+                      </p>
+                    )}
+                  </div>
+                ))}
               </div>
             )}
-          </div>
+          </section>
 
-          {/* Payment */}
-          <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6">
-            <h2 className="text-xl font-semibold mb-4 text-white">Payment Method</h2>
-            <div className="space-y-3 text-gray-300">
-              <label className="flex items-center space-x-3 border border-gray-700 rounded-lg p-3 cursor-pointer hover:bg-gray-700/40">
-                <input type="radio" name="payment" value="razorpay" checked={paymentMethod === "razorpay"} onChange={() => dispatch(setPaymentMethod("razorpay"))} />
-                <span>Credit / Debit Card, UPI, Wallet (via Razorpay)</span>
-              </label>
-              <label className="flex items-center space-x-3 border border-gray-700 rounded-lg p-3 cursor-pointer hover:bg-gray-700/40">
-                <input type="radio" name="payment" value="cod" checked={paymentMethod === "cod"} onChange={() => dispatch(setPaymentMethod("cod"))} />
-                <span>Cash on Delivery</span>
-              </label>
+          {/* PAYMENT */}
+          <section className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6">
+            <h2 className="text-xl font-semibold mb-4">Payment Method</h2>
+
+            <div className="space-y-3">
+              {[
+                ["razorpay", "Credit / Debit Card, UPI, Wallet (Razorpay)"],
+                ["cod", "Cash on Delivery"],
+              ].map(([method, label]) => (
+                <label
+                  key={method}
+                  className={`flex items-center space-x-3 border rounded-lg p-3 cursor-pointer transition ${
+                    paymentMethod === method
+                      ? "border-blue-500 bg-gray-700/50"
+                      : "border-gray-700 hover:bg-gray-700/40"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={paymentMethod === method}
+                    onChange={() => dispatch(setPaymentMethod(method))}
+                  />
+                  <span>{label}</span>
+                </label>
+              ))}
             </div>
-          </div>
+          </section>
         </div>
 
-        {/* Right Section - Order Summary */}
-        <div className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6 h-fit">
-          <h2 className="text-xl font-semibold mb-4 text-white">Order Summary</h2>
-          <div className="space-y-4 mb-6 text-gray-300">
+        {/* RIGHT SIDE */}
+        <aside className="bg-gray-800/80 border border-gray-700 rounded-2xl p-6 h-fit">
+          <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
+
+          <div className="space-y-4 mb-6">
             {orderSummary.items.length > 0 ? (
               orderSummary.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between">
-                  <p>{item.name} (x{item.quantity || item.qty || 1})</p>
+                <div key={idx} className="flex justify-between text-gray-300">
+                  <p>
+                    {item.name} (x{item.quantity || item.qty || 1})
+                  </p>
                   <p>₹{item.price * (item.quantity || item.qty || 1)}</p>
                 </div>
               ))
             ) : (
               <p className="text-gray-400">No items in checkout.</p>
             )}
+
             <hr className="border-gray-700" />
+
             <div className="flex justify-between">
               <p>Subtotal</p>
               <p>₹{orderSummary.subtotal}</p>
             </div>
+
             <div className="flex justify-between">
               <p>Shipping</p>
               <p>₹{orderSummary.shippingCost}</p>
             </div>
+
             <div className="flex justify-between font-semibold text-white">
               <p>Total</p>
               <p>₹{orderSummary.total}</p>
             </div>
           </div>
 
+          {/* iOS Button */}
           <button
             onClick={handlePlaceOrder}
             disabled={loading}
-            className={`w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-semibold py-3 rounded-lg ${loading ? "opacity-60 cursor-not-allowed" : ""}`}
+            className={`${softButton} ${
+              loading ? "opacity-60 cursor-not-allowed" : ""
+            }`}
           >
-            {loading ? "Processing..." : paymentMethod === "razorpay" ? "Pay with Razorpay" : "Place Order"}
+            {loading
+              ? "Processing..."
+              : paymentMethod === "razorpay"
+              ? "Pay with Razorpay"
+              : "Place Order"}
           </button>
-        </div>
+        </aside>
       </div>
     </div>
   );
