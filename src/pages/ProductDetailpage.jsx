@@ -8,6 +8,7 @@ import { useParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { getProductById as fetchProductById } from "../firebase/services/productService";
 import { setProduct as setProductInStore } from "../redux/productSlice";
+import { Heart } from "lucide-react";
 
 export default function ProductDetailsPage() {
   const { id } = useParams(); // id may be a string (Firestore doc id) or numeric string for legacy data
@@ -17,6 +18,11 @@ export default function ProductDetailsPage() {
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const wishlist = useSelector((state) => state.wishlist.items || []);
+
+  const isWishlisted = wishlist.some(
+    (item) => String(item.id) === String(product?.id)
+  );
 
   // Try to find product in Redux list first for snappy UI
   useEffect(() => {
@@ -26,7 +32,9 @@ export default function ProductDetailsPage() {
     // Try exact match (string id from Firestore)
     const foundById = products.find((p) => String(p.id) === String(id));
     // Also attempt numeric match for legacy local arrays that used numeric ids
-    const foundByNumeric = products.find((p) => Number(p.id) === Number(id) && !Number.isNaN(Number(id)));
+    const foundByNumeric = products.find(
+      (p) => Number(p.id) === Number(id) && !Number.isNaN(Number(id))
+    );
 
     const initial = foundById || foundByNumeric || null;
     if (initial) {
@@ -41,7 +49,7 @@ export default function ProductDetailsPage() {
       try {
         const doc = await fetchProductById(id);
         if (!cancelled) {
-          if (doc) { 
+          if (doc) {
             setProduct(doc);
             dispatch(setSelectedProduct(doc));
             // keep Redux in sync (optional)
@@ -64,7 +72,9 @@ export default function ProductDetailsPage() {
   }, [id, products, dispatch]);
 
   if (loading) {
-    return <div className="text-center py-20 text-gray-300">Loading product...</div>;
+    return (
+      <div className="text-center py-20 text-gray-300">Loading product...</div>
+    );
   }
 
   if (error) {
@@ -96,6 +106,20 @@ export default function ProductDetailsPage() {
       <div className="container mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
         {/* Left: Gallery */}
         <ProductGallery product={safeProduct} />
+
+        
+        {/* Wishlist Button */}
+        <button
+          onClick={() => dispatch(toggleWishlist(safeProduct))}
+          className="absolute top-0 right-0 bg-black/60 p-3 rounded-full hover:scale-110 transition z-10"
+        >
+          <Heart
+            size={24}
+            className={
+              isWishlisted ? "fill-pink-500 text-pink-500" : "text-white"
+            }
+          />
+        </button>
 
         {/* Right: Info */}
         <ProductInfo product={safeProduct} />

@@ -8,6 +8,11 @@ import { addToCart } from "../redux/cartSlice";
 import { setSelectedProduct, setProducts } from "../redux/productSlice";
 import toast from "react-hot-toast";
 import { fetchProducts } from "../firebase/services/productService";
+import { Heart } from "lucide-react";
+import { addToWishlistFS, removeFromWishlistFS,} from "../firebase/services/wishlistService";
+import { addWishlistItem, removeWishlistItem } from "../redux/wishlistSlice";
+
+
 
 const categories = ["All", "Dress", "Electronics", "Accessories", "Home Decor"];
 
@@ -22,6 +27,9 @@ const Products = () => {
   const navigate = useNavigate();
 
   const products = useSelector((state) => state.product.items) || [];
+  const user = useSelector((state) => state.auth.user);
+  const wishlist = useSelector((state) => state.wishlist.items);
+  const isWishlisted = (id) => wishlist.some((item) => item.id === id);
 
   useEffect(() => {
     AOS.init({ duration: 700 });
@@ -77,6 +85,40 @@ const Products = () => {
     });
   };
 
+  const handleWishlistToggle = async (product) => {
+  if (!user) {
+    toast.error("Please login to use wishlist");
+    return;
+  }
+
+  const exists = wishlist.some(
+    (item) => String(item.id) === String(product.id)
+  );
+
+  try {
+    if (exists) {
+      await removeFromWishlistFS(user.uid, product.id);
+      dispatch(removeWishlistItem(product.id));
+      toast("Removed from wishlist 💔");
+    } else {
+      await addToWishlistFS(user.uid, product);
+
+      dispatch(
+        addWishlistItem({
+          ...product,
+          createdAt: Date.now(), // ✅ FIXES TIMESTAMP ERROR
+        })
+      );
+
+      toast.success("Added to wishlist ❤️");
+    }
+  } catch (error) {
+    console.error("Wishlist error:", error);
+    toast.error("Wishlist update failed");
+  }
+};
+
+
   return (
     <div className="relative bg-gradient-to-b from-gray-900 via-gray-800 to-black min-h-screen py-16 px-4 sm:px-10 overflow-hidden text-white">
       <div className="text-center z-10 relative mb-14" data-aos="fade-down">
@@ -131,7 +173,9 @@ const Products = () => {
 
       {/* Loading */}
       {loading ? (
-        <div className="text-center py-20 text-gray-300">Loading products...</div>
+        <div className="text-center py-20 text-gray-300">
+          Loading products...
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8 z-10 relative">
           {filteredProducts.map((product) => (
@@ -140,6 +184,20 @@ const Products = () => {
               data-aos="fade-up"
               className="bg-gray-800/80 backdrop-blur-md border border-gray-700 rounded-2xl overflow-hidden hover:scale-105 transition-transform duration-300 shadow-xl"
             >
+              <button
+                onClick={() => handleWishlistToggle(product)}
+                className="absolute top-4 right-4 bg-black/60 p-2 rounded-full hover:scale-110 transition"
+              >
+                <Heart
+                  size={20}
+                  className={
+                    isWishlisted(product.id)
+                      ? "fill-pink-500 text-pink-500"
+                      : "text-white"
+                  }
+                />
+              </button>
+
               <img
                 src={product.image || "/images/fallback.jpg"}
                 alt={product.name}
@@ -149,10 +207,14 @@ const Products = () => {
                 }}
               />
               <div className="p-5">
-                <h3 className="text-lg font-semibold text-pink-500">{product.name}</h3>
+                <h3 className="text-lg font-semibold text-pink-500">
+                  {product.name}
+                </h3>
                 <p className="text-sm text-gray-400 mb-2">{product.desc}</p>
                 <p className="text-pink-400 font-bold">${product.price}</p>
-                <span className="text-xs text-gray-500">{product.category}</span>
+                <span className="text-xs text-gray-500">
+                  {product.category}
+                </span>
 
                 <div className="mt-3 flex items-center justify-center gap-4">
                   <button
@@ -172,7 +234,9 @@ const Products = () => {
             </div>
           ))}
           {filteredProducts.length === 0 && (
-            <div className="col-span-full text-center py-16 text-gray-400">No products match your filters.</div>
+            <div className="col-span-full text-center py-16 text-gray-400">
+              No products match your filters.
+            </div>
           )}
         </div>
       )}

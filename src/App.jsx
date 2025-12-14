@@ -1,7 +1,7 @@
 // src/App.jsx
 import { useEffect } from "react";
 import "./App.css";
-import { Route, Routes, useLocation, Navigate  } from "react-router-dom";
+import { Route, Routes, useLocation, Navigate } from "react-router-dom";
 
 /* Layout */
 import Header from "./components/layout/header";
@@ -20,6 +20,7 @@ import CheckoutPage from "./pages/CheckoutPage";
 import ProfileSection from "./pages/ProfileSection";
 import MyOrders from "./pages/MyOrders";
 import OrderDetails from "./pages/OrderDetails";
+import Wishlist from "./pages/Wishlist";
 
 import Login from "./pages/Login";
 import Register from "./pages/Register";
@@ -38,7 +39,6 @@ import AdminCustomers from "./Admin/pages/AdminCustomer";
 import AdminSettings from "./Admin/pages/AdminSettings";
 import AdminProductsQA from "./Admin/pages/AdminProductQA";
 
-
 /* Toast */
 import { Toaster } from "react-hot-toast";
 
@@ -46,14 +46,17 @@ import { Toaster } from "react-hot-toast";
 import { onAuthStateChanged } from "firebase/auth";
 import { auth, db } from "./firebase/firebase_config";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
+import { fetchWishlistFS } from "./firebase/services/wishlistService";
 
 /* Redux */
 import { useDispatch } from "react-redux";
 import { setUser, clearUser, setLoading } from "./redux/authSlice";
+import { setWishlist, clearWishlist, setWishlistLoading } from "./redux/wishlistSlice";
 
 /* Animations */
 import AOS from "aos";
 import "aos/dist/aos.css";
+
 AOS.init();
 
 function App() {
@@ -63,61 +66,67 @@ function App() {
 
   /* 🔐 AUTH STATE LISTENER (REFRESH SAFE) */
   useEffect(() => {
-    dispatch(setLoading(true));
+  dispatch(setLoading(true));
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      try {
-        if (!firebaseUser) {
-          dispatch(clearUser());
-          return;
-        }
-
-        const userRef = doc(db, "users", firebaseUser.uid);
-        const snap = await getDoc(userRef);
-
-        // ✅ Create user doc if not exists (Google / first login)
-        if (!snap.exists()) {
-          const isAdminEmail =
-            firebaseUser.email === "admin@site.com";
-
-
-          await setDoc(userRef, {
-            name: firebaseUser.displayName || "",
-            email: firebaseUser.email,
-            avatar: firebaseUser.photoURL || "",
-            role: isAdminEmail ? "admin" : "user",
-            provider: firebaseUser.providerData[0]?.providerId || "password",
-            createdAt: serverTimestamp(),
-          });
-        }
-
-        const finalSnap = await getDoc(userRef);
-        const data = finalSnap.data();
-
-        // ✅ SANITIZE DATA (NO TIMESTAMP IN REDUX)
-        dispatch(
-          setUser({
-            uid: firebaseUser.uid,
-            email: firebaseUser.email,
-            name: data?.name || "",
-            avatar: data?.avatar || "",
-            role: data?.role.trim() || "user",
-            provider: data?.provider || "password",
-            createdAt: data?.createdAt
-              ? data.createdAt.toMillis()
-              : null,
-          })
-        );
-      } catch (error) {
-        console.error("Auth listener error:", error);
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    try {
+      if (!firebaseUser) {
         dispatch(clearUser());
-      } finally {
-        dispatch(setLoading(false));
+        dispatch(clearWishlist()); // 🧹 clear wishlist on logout
+        return;
       }
-    });
 
-    return () => unsubscribe();
-  }, [dispatch]);
+      const userRef = doc(db, "users", firebaseUser.uid);
+      const snap = await getDoc(userRef);
+
+      if (!snap.exists()) {
+        const isAdminEmail = firebaseUser.email === "admin@site.com";
+
+        await setDoc(userRef, {
+          name: firebaseUser.displayName || "",
+          email: firebaseUser.email,
+          avatar: firebaseUser.photoURL || "",
+          role: isAdminEmail ? "admin" : "user",
+          provider: firebaseUser.providerData[0]?.providerId || "password",
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      const finalSnap = await getDoc(userRef);
+      const data = finalSnap.data() || {};
+
+      // ✅ 1️⃣ SET USER
+      dispatch(
+        setUser({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          name: data.name || "",
+          avatar: data.avatar || "",
+          role: (data.role || "user").trim(),
+          provider: data.provider || "password",
+          createdAt: data.createdAt ? data.createdAt.toMillis() : null,
+        })
+      );
+
+      // ✅ 2️⃣ FETCH + SET WISHLIST
+      if ((data.role || "user") === "user") {
+          dispatch(setWishlistLoading(true));
+        const wishlist = await fetchWishlistFS(firebaseUser.uid);
+        dispatch(setWishlist(wishlist));
+      }
+
+    } catch (error) {
+      console.error("Auth listener error:", error);
+      dispatch(clearUser());
+      dispatch(clearWishlist());
+    } finally {
+      dispatch(setLoading(false));
+    }
+  });
+
+  return () => unsubscribe();
+}, [dispatch]);
+
 
   return (
     <>
@@ -136,6 +145,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        <Route path="/wishlist" element={<Wishlist />} />
 
         {/* ================= USER PROTECTED ================= */}
         <Route
@@ -183,7 +193,6 @@ function App() {
             </AdminProtectedRoute>
           }
         >
-          
           <Route path="dashboard" element={<AdminDashboard />} />
           <Route path="adminproduct" element={<AdminProducts />} />
           <Route path="adminorder" element={<AdminOrders />} />

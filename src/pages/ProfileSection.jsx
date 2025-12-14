@@ -130,7 +130,7 @@ export default function ProfilePage() {
                 label="My Orders"
                 onClick={() => navigate("/my-orders")}
               />
-              <Shortcut icon={<FaHeart />} label="Wishlist" />
+              <Shortcut icon={<FaHeart />} label="Wishlist" onClick={() => navigate("/wishlist")} />
               <Shortcut icon={<FaStar />} label="Reviews" />
               <Shortcut icon={<FaCog />} label="Settings" />
             </div>
