@@ -26,7 +26,11 @@ const productsCol = collection(db, "products");
  */
 export async function fetchProducts(options = {}) {
   try {
-    const { category, activeOnly = false, orderByField = "createdAt" } = options;
+    const {
+      category,
+      activeOnly = false,
+      orderByField = "createdAt",
+    } = options;
 
     let q = productsCol;
 
@@ -43,7 +47,15 @@ export async function fetchProducts(options = {}) {
     }
 
     const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+    return snap.docs.map((d) => {
+      const data = d.data();
+      return {
+        id: d.id,
+        ...data,
+        createdAt: data.createdAt?.toMillis?.() || null,
+        updatedAt: data.updatedAt?.toMillis?.() || null,
+      };
+    });
   } catch (err) {
     console.error("fetchProducts error:", err);
     throw err;
@@ -58,7 +70,13 @@ export async function getProductById(id) {
     const ref = doc(db, "products", id);
     const snap = await getDoc(ref);
     if (!snap.exists()) return null;
-    return { id: snap.id, ...snap.data() };
+    const data = snap.data();
+    return {
+      id: snap.id,
+      ...data,
+      createdAt: data.createdAt?.toMillis?.() || null,
+      updatedAt: data.updatedAt?.toMillis?.() || null,
+    };
   } catch (err) {
     console.error("getProductById error:", err);
     throw err;
@@ -74,8 +92,10 @@ export async function createProduct(data) {
   try {
     const payload = {
       ...data,
-      price: typeof data.price === "number" ? data.price : Number(data.price || 0),
-      stock: typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
+      price:
+        typeof data.price === "number" ? data.price : Number(data.price || 0),
+      stock:
+        typeof data.stock === "number" ? data.stock : Number(data.stock || 0),
       active: data.active ?? true,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),

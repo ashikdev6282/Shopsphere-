@@ -8,6 +8,7 @@ import themeReducer from '../redux/themeSlice.jsx';
 import orderReducer from '../redux/orderSlice.jsx';
 import customerReducer from '../redux/customerSlice.jsx';
 import wishlistReducer from '../redux/wishlistSlice.jsx';
+import reviewReducer from '../redux/reviewSlice.jsx';
 import { User } from 'lucide-react';
 
 export const store = configureStore({
@@ -21,6 +22,7 @@ export const store = configureStore({
     orders: orderReducer,
     customers: customerReducer,
     wishlist: wishlistReducer,
+    review: reviewReducer,
   },
 });
 export default store;

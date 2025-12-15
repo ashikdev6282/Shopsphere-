@@ -51,7 +51,11 @@ import { fetchWishlistFS } from "./firebase/services/wishlistService";
 /* Redux */
 import { useDispatch } from "react-redux";
 import { setUser, clearUser, setLoading } from "./redux/authSlice";
-import { setWishlist, clearWishlist, setWishlistLoading } from "./redux/wishlistSlice";
+import {
+  setWishlist,
+  clearWishlist,
+  setWishlistLoading,
+} from "./redux/wishlistSlice";
 
 /* Animations */
 import AOS from "aos";
@@ -66,67 +70,72 @@ function App() {
 
   /* 🔐 AUTH STATE LISTENER (REFRESH SAFE) */
   useEffect(() => {
-  dispatch(setLoading(true));
+    dispatch(setLoading(true));
 
-  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-    try {
-      if (!firebaseUser) {
-        dispatch(clearUser());
-        dispatch(clearWishlist()); // 🧹 clear wishlist on logout
-        return;
-      }
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      try {
+        if (!firebaseUser) {
+          dispatch(clearUser());
+          dispatch(clearWishlist()); // 🧹 clear wishlist on logout
+          return;
+        }
 
-      const userRef = doc(db, "users", firebaseUser.uid);
-      const snap = await getDoc(userRef);
+        const userRef = doc(db, "users", firebaseUser.uid);
+        const snap = await getDoc(userRef);
 
-      if (!snap.exists()) {
-        const isAdminEmail = firebaseUser.email === "admin@site.com";
+        if (!snap.exists()) {
+          const isAdminEmail = firebaseUser.email === "admin@site.com";
 
-        await setDoc(userRef, {
-          name: firebaseUser.displayName || "",
-          email: firebaseUser.email,
-          avatar: firebaseUser.photoURL || "",
-          role: isAdminEmail ? "admin" : "user",
-          provider: firebaseUser.providerData[0]?.providerId || "password",
-          createdAt: serverTimestamp(),
-        });
-      }
+          await setDoc(userRef, {
+            name: firebaseUser.displayName || "",
+            email: firebaseUser.email,
+            avatar: firebaseUser.photoURL || "",
+            role: isAdminEmail ? "admin" : "user",
+            provider: firebaseUser.providerData[0]?.providerId || "password",
+            createdAt: serverTimestamp(),
+          });
+        }
 
-      const finalSnap = await getDoc(userRef);
-      const data = finalSnap.data() || {};
+        const finalSnap = await getDoc(userRef);
+        const data = finalSnap.data() || {};
 
-      // ✅ 1️⃣ SET USER
-      dispatch(
-        setUser({
-          uid: firebaseUser.uid,
-          email: firebaseUser.email,
-          name: data.name || "",
-          avatar: data.avatar || "",
-          role: (data.role || "user").trim(),
-          provider: data.provider || "password",
-          createdAt: data.createdAt ? data.createdAt.toMillis() : null,
-        })
-      );
+        // ✅ 1️⃣ SET USER
+        dispatch(
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: data.name || "",
+            avatar: data.avatar || "",
+            role: (data.role || "user").trim(),
+            provider: data.provider || "password",
+            createdAt: data.createdAt ? data.createdAt.toMillis() : null,
+          })
+        );
 
-      // ✅ 2️⃣ FETCH + SET WISHLIST
-      if ((data.role || "user") === "user") {
+        // ✅ 2️⃣ FETCH + SET WISHLIST
+        if ((data.role || "user") === "user") {
           dispatch(setWishlistLoading(true));
-        const wishlist = await fetchWishlistFS(firebaseUser.uid);
-        dispatch(setWishlist(wishlist));
+          const wishlist = await fetchWishlistFS(firebaseUser.uid);
+
+          const safeWishlist = wishlist.map((item) => ({
+            ...item,
+            createdAt: item.createdAt?.toMillis?.() || null,
+            updatedAt: item.updatedAt?.toMillis?.() || null,
+          }));
+
+          dispatch(setWishlist(safeWishlist));
+        }
+      } catch (error) {
+        console.error("Auth listener error:", error);
+        dispatch(clearUser());
+        dispatch(clearWishlist());
+      } finally {
+        dispatch(setLoading(false));
       }
+    });
 
-    } catch (error) {
-      console.error("Auth listener error:", error);
-      dispatch(clearUser());
-      dispatch(clearWishlist());
-    } finally {
-      dispatch(setLoading(false));
-    }
-  });
-
-  return () => unsubscribe();
-}, [dispatch]);
-
+    return () => unsubscribe();
+  }, [dispatch]);
 
   return (
     <>

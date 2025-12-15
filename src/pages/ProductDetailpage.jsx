@@ -1,139 +1,218 @@
 // src/pages/ProductDetailsPage.jsx
 import React, { useEffect, useState } from "react";
+import { useParams } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+import toast from "react-hot-toast";
+import { Star, Trash2, Heart } from "lucide-react";
+
+/* Components */
 import ProductGallery from "../components/ProductDetails/Productgallery";
 import ProductInfo from "../components/ProductDetails/Productinfo";
 import ProductTabs from "../components/ProductDetails/ProductTabs";
-import ProductReviews from "../components/ProductDetails/ProductReviews";
-import { useParams } from "react-router-dom";
-import { useSelector, useDispatch } from "react-redux";
-import { getProductById as fetchProductById } from "../firebase/services/productService";
-import { setProduct as setProductInStore } from "../redux/productSlice";
-import { Heart } from "lucide-react";
+
+/* Firebase */
+import { getProductById } from "../firebase/services/productService";
+import {
+  fetchReviewsFS,
+  addReviewFS,
+  deleteReviewFS,
+  hasUserReviewedFS,
+} from "../firebase/services/reviewService";
+
+/* Redux */
+import {
+  setProduct as setProductInStore,
+  setSelectedProduct,
+} from "../redux/productSlice";
+import {
+  setReviews,
+  addReview,
+  removeReview,
+  setReviewLoading,
+} from "../redux/reviewSlice";
+import { toggleWishlist } from "../redux/wishlistSlice";
 
 export default function ProductDetailsPage() {
-  const { id } = useParams(); // id may be a string (Firestore doc id) or numeric string for legacy data
+  const { id } = useParams();
   const dispatch = useDispatch();
 
+  /* Redux state */
   const products = useSelector((s) => s.product.items || []);
+  const { user } = useSelector((s) => s.auth);
+  const wishlist = useSelector((s) => s.wishlist.items || []);
+
+  // ✅ SAFE reviews selector
+  const reviewsState = useSelector(
+    (s) => s.reviews || { items: [], loading: false }
+  );
+  const { items: reviews, loading: reviewLoading } = reviewsState;
+
+  /* Local state */
   const [product, setProduct] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const wishlist = useSelector((state) => state.wishlist.items || []);
+
+  /* Review form */
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   const isWishlisted = wishlist.some(
     (item) => String(item.id) === String(product?.id)
   );
 
-  // Try to find product in Redux list first for snappy UI
+  /* ================= LOAD PRODUCT ================= */
   useEffect(() => {
-    setLoading(true);
-    setError(null);
-
-    // Try exact match (string id from Firestore)
-    const foundById = products.find((p) => String(p.id) === String(id));
-    // Also attempt numeric match for legacy local arrays that used numeric ids
-    const foundByNumeric = products.find(
-      (p) => Number(p.id) === Number(id) && !Number.isNaN(Number(id))
-    );
-
-    const initial = foundById || foundByNumeric || null;
-    if (initial) {
-      setProduct(initial);
-      setLoading(false);
-      return;
-    }
-
-    // If not found locally, fetch single doc from Firestore
     let cancelled = false;
-    (async () => {
+
+    const loadProduct = async () => {
+      setLoading(true);
+      setError(null);
+
+      const localProduct = products.find(
+        (p) => String(p.id) === String(id)
+      );
+
+      if (localProduct) {
+        setProduct(localProduct);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const doc = await fetchProductById(id);
+        const doc = await getProductById(id);
         if (!cancelled) {
-          if (doc) {
+          if (!doc) {
+            setError("Product not found");
+          } else {
             setProduct(doc);
             dispatch(setSelectedProduct(doc));
-            // keep Redux in sync (optional)
             dispatch(setProductInStore(doc));
-          } else {
-            setError("Product not found.");
           }
         }
       } catch (err) {
-        console.error("Failed to load product:", err);
-        if (!cancelled) setError("Failed to load product. Try again.");
+        console.error(err);
+        if (!cancelled) setError("Failed to load product");
       } finally {
         if (!cancelled) setLoading(false);
       }
-    })();
-
-    return () => {
-      cancelled = true;
     };
+
+    loadProduct();
+    return () => (cancelled = true);
   }, [id, products, dispatch]);
 
-  if (loading) {
-    return (
-      <div className="text-center py-20 text-gray-300">Loading product...</div>
-    );
+  /* ================= LOAD REVIEWS ================= */
+  useEffect(() => {
+    let mounted = true;
+
+    const loadReviews = async () => {
+      dispatch(setReviewLoading(true));
+      const data = await fetchReviewsFS(id);
+      if (mounted) dispatch(setReviews(data));
+    };
+
+    loadReviews();
+    return () => (mounted = false);
+  }, [id, dispatch]);
+
+  /* ================= ADD REVIEW ================= */
+  const handleSubmitReview = async () => {
+  if (!user) {
+    toast.error("Login to add a review");
+    return;
   }
 
-  if (error) {
+  if (!comment.trim()) {
+    toast.error("Write a comment");
+    return;
+  }
+
+  setSubmitting(true);
+
+  try {
+    // 1️⃣ Check if already reviewed
+    const alreadyReviewed = await hasUserReviewedFS(id, user.uid);
+    if (alreadyReviewed) {
+      toast.error("You already reviewed this product");
+      return;
+    }
+
+    // 2️⃣ Save review to Firestore
+    await addReviewFS(id, {
+      uid: user.uid,
+      userName: user.name || user.email,
+      rating,
+      comment,
+    });
+
+    // 3️⃣ IMPORTANT: Re-fetch reviews from Firestore
+    const updatedReviews = await fetchReviewsFS(id);
+    dispatch(setReviews(updatedReviews));
+
+    // 4️⃣ Reset form
+    setComment("");
+    setRating(5);
+
+    toast.success("Review added ⭐");
+  } catch (error) {
+    console.error(error);
+    toast.error("Failed to add review");
+  } finally {
+    setSubmitting(false);
+  }
+};
+
+
+  /* ================= UI STATES ================= */
+  if (loading)
     return (
-      <div className="text-center sm:text-3xl font-bold px-6 sm:px-0 sm:pt-12 sm:pb-6 py-20 text-gray-300">
+      <div className="text-center py-20 text-gray-300">
+        Loading product...
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="text-center py-20 text-gray-300">
         {error}
       </div>
     );
-  }
 
-  if (!product) {
-    return (
-      <div className="text-center sm:text-3xl font-bold px-6 sm:px-0 sm:pt-12 sm:pb-6 py-20 text-gray-300">
-        Product not found.
-      </div>
-    );
-  }
+  if (!product) return null;
 
-  // Ensure product.image fallback handled in gallery component,
-  // but pass a safe value here as well
   const safeProduct = {
     ...product,
     image: product.image || "/images/fallback.jpg",
   };
 
+  /* ================= UI ================= */
   return (
     <div className="bg-gray-900 min-h-screen text-gray-100">
-      {/* Product Section */}
-      <div className="container mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12">
-        {/* Left: Gallery */}
+      {/* PRODUCT */}
+      <div className="container mx-auto px-6 py-12 grid grid-cols-1 lg:grid-cols-2 gap-12 relative">
         <ProductGallery product={safeProduct} />
 
-        
-        {/* Wishlist Button */}
+        {/* Wishlist */}
         <button
           onClick={() => dispatch(toggleWishlist(safeProduct))}
-          className="absolute top-0 right-0 bg-black/60 p-3 rounded-full hover:scale-110 transition z-10"
+          className="absolute top-6 right-6 bg-black/60 p-3 rounded-full z-10"
         >
           <Heart
             size={24}
             className={
-              isWishlisted ? "fill-pink-500 text-pink-500" : "text-white"
+              isWishlisted
+                ? "fill-pink-500 text-pink-500"
+                : "text-white"
             }
           />
         </button>
 
-        {/* Right: Info */}
         <ProductInfo product={safeProduct} />
       </div>
 
-      {/* Tabs (Description / Specs / Reviews) */}
       <div className="container mx-auto px-6">
-        <ProductTabs product={safeProduct} />
-      </div>
-
-      {/* Related Products / Reviews */}
-      <div className="container mx-auto px-6 py-12">
-        <h2 className="text-2xl font-bold mb-6">Related Products</h2>
-        <ProductReviews product={safeProduct} />
+        <ProductTabs product={safeProduct}  />
       </div>
     </div>
   );

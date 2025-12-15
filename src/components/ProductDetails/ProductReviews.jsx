@@ -4,7 +4,7 @@ import { motion } from "framer-motion";
 import { Star, X } from "lucide-react";
 import { useSelector } from "react-redux";
 import toast from "react-hot-toast";
-import { fetchReviewsForProduct, addReviewForProduct } from "../../firebase/services/reviewService";
+import { fetchReviewsFS, addReviewFS } from "../../firebase/services/reviewService";
 
 /**
  * If your ProductDetailsPage dispatches setSelectedProduct(product),
@@ -30,7 +30,7 @@ const ProductReviews = ({ product: propProduct }) => {
     (async () => {
       setLoading(true);
       try {
-        const list = await fetchReviewsForProduct(product.id);
+        const list = await fetchReviewsFS(product.id);
         if (!cancelled) {
           if (Array.isArray(list) && list.length > 0) {
             // Map Firestore timestamp to readable string if present
@@ -90,7 +90,7 @@ const ProductReviews = ({ product: propProduct }) => {
 
     // Try to persist to Firestore (if available)
     try {
-      const docId = await addReviewForProduct(product.id, payload);
+      const docId = await addReviewFS(product.id, payload);
       // update temp entry id to real id (best-effort)
       setReviews((prev) => prev.map((r) => (r.id === temp.id ? { ...r, id: docId } : r)));
       toast.success("Review submitted — thanks!");
@@ -218,5 +218,4 @@ const ProductReviews = ({ product: propProduct }) => {
     </section>
   );
 };
-
 export default ProductReviews;

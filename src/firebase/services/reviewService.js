@@ -1,42 +1,59 @@
-// src/firebase/services/reviewService.js
-import { collection, getDocs, addDoc, query, orderBy, serverTimestamp, } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  deleteDoc,
+  getDocs,
+  query,
+  orderBy,
+  where,
+  serverTimestamp,
+  doc,
+} from "firebase/firestore";
 import { db } from "../firebase_config";
 
-/**
- * Fetch reviews for a productId
- * returns array of reviews: [{ id, name, rating, review, createdAt }]
- */
-export async function fetchReviewsForProduct(productId) {
-  if (!db) return [];
-  try {
-    const colRef = collection(db, "productReviews", String(productId), "reviews");
-    const q = query(colRef, orderBy("createdAt", "desc"));
-    const snap = await getDocs(q);
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-  } catch (err) {
-    console.error("fetchReviewsForProduct error:", err);
-    throw err;
-  }
-}
+/* 🔹 Add Review */
+export const addReviewFS = async (productId, review) => {
+  const ref = collection(db, "products", productId, "reviews");
 
-/**
- * Add a review document under productReviews/{productId}/reviews
- * reviewData: { name, rating, review }
- * returns created doc id
- */
-export async function addReviewForProduct(productId, reviewData) {
-  if (!db) throw new Error("No Firestore DB available");
-  try {
-    const colRef = collection(db, "productReviews", String(productId), "reviews");
-    const payload = {
-      ...reviewData,
-      rating: Number(reviewData.rating || 0),
-      createdAt: serverTimestamp(),
+  const docRef = await addDoc(ref, {
+    ...review,
+    createdAt: serverTimestamp(),
+  });
+
+  // ✅ return serialized object for Redux
+  return {
+    id: docRef.id,
+    ...review,
+    createdAt: Date.now(),
+  };
+};
+
+/* 🔹 Fetch Reviews */
+export const fetchReviewsFS = async (productId) => {
+  const ref = collection(db, "products", productId, "reviews");
+  const q = query(ref, orderBy("createdAt", "desc"));
+  const snap = await getDocs(q);
+
+  return snap.docs.map((d) => {
+    const data = d.data(); // ✅ FIX
+    return {
+      id: d.id,
+      ...data,
+      createdAt: data.createdAt ? data.createdAt.toMillis() : null, // ✅ SERIALIZED
     };
-    const ref = await addDoc(colRef, payload);
-    return ref.id;
-  } catch (err) {
-    console.error("addReviewForProduct error:", err);
-    throw err;
-  }
-}
+  });
+};
+
+/* 🔹 Delete Review (Owner only) */
+export const deleteReviewFS = async (productId, reviewId) => {
+  const ref = doc(db, "products", productId, "reviews", reviewId);
+  await deleteDoc(ref);
+};
+
+/* 🔹 Check if user already reviewed */
+export const hasUserReviewedFS = async (productId, uid) => {
+  const ref = collection(db, "products", productId, "reviews");
+  const q = query(ref, where("uid", "==", uid));
+  const snap = await getDocs(q);
+  return !snap.empty;
+};

@@ -1,174 +1,130 @@
 // src/components/ProductDetails/ProductTabs.jsx
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { useSelector } from "react-redux";
-import ProductQA from "../ProductDetails/productQA";
+import { useSelector, useDispatch } from "react-redux";
+import { Star, Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
+import ProductQA from "./productQA";
+import { deleteReviewFS } from "../../firebase/services/reviewService";
+import { removeReview } from "../../redux/reviewSlice";
+import ProductReviews from "./ProductReviews";
 
 export default function ProductTabs({ product: propProduct }) {
+  const dispatch = useDispatch();
+
   const selectedProduct = useSelector((s) => s.product.selectedProduct);
   const product = propProduct || selectedProduct;
 
-  const tabs = [
-    "Description",
-    product?.specs || product?.material || product?.size ? "Specifications" : null,
-    "Shipping",
-    "Reviews",
-    "Q&A", // ✅ Added Q&A tab
-  ].filter(Boolean);
+  const { user } = useSelector((s) => s.auth);
+  const { items: reviews, loading } = useSelector(
+    (s) => s.reviews || { items: [], loading: false }
+  );
 
+  const tabs = ["Description", "Shipping", "Reviews", "Q&A"];
   const [activeTab, setActiveTab] = useState("Description");
 
   if (!product) {
     return <div className="text-gray-300 py-4">No product selected.</div>;
-  }
+  } 
 
-  /* ============================================================
-     SPECIFICATIONS RENDERER
-  ============================================================ */
-  const renderSpecifications = () => {
-    if (product.specs && typeof product.specs === "object") {
-      return (
-        <div className="space-y-3 text-gray-300">
-          {Object.entries(product.specs).map(([key, value]) => (
-            <p key={key}>
-              <span className="font-semibold text-white capitalize">{key}:</span>{" "}
-              {value}
-            </p>
-          ))}
-        </div>
-      );
+  /* ================= REVIEWS UI ================= */
+  const renderReviews = () => {
+    if (loading) {
+      return <p className="text-gray-400">Loading reviews...</p>;
     }
 
-    // Fallback
-    const specFields = [
-      { label: "Material", value: product.material },
-      { label: "Size", value: product.size },
-      { label: "Weight", value: product.weight },
-      { label: "Dimensions", value: product.dimensions },
-    ].filter((item) => item.value);
-
-    if (specFields.length > 0) {
-      return (
-        <div className="space-y-3 text-gray-300">
-          {specFields.map((spec) => (
-            <p key={spec.label}>
-              <span className="font-semibold text-white">{spec.label}:</span>{" "}
-              {spec.value}
-            </p>
-          ))}
-        </div>
-      );
+    if (reviews.length === 0) {
+      return <p className="text-gray-400">No reviews yet</p>;
     }
 
-    return (
-      <p className="text-gray-400 italic">
-        No additional specifications available for this product.
-      </p>
-    );
+    return reviews.map((r) => (
+      <div key={r.id} className="border-b border-gray-700 py-4">
+        <div className="flex justify-between items-center">
+          <strong>{r.userName}</strong>
+
+          {r.uid === user?.uid && (
+            <Trash2
+              size={16}
+              className="text-red-400 cursor-pointer"
+              onClick={async () => {
+                await deleteReviewFS(product.id, r.id);
+                dispatch(removeReview(r.id));
+                toast.success("Review deleted");
+              }}
+            />
+          )}
+        </div>
+
+        <div className="flex gap-1 my-1">
+          {[1, 2, 3, 4, 5].map((n) => (
+            <Star
+              key={n}
+              size={14}
+              className={
+                n <= r.rating ? "text-yellow-400" : "text-gray-600"
+              }
+            />
+          ))}
+        </div>
+
+        <p className="text-gray-300">{r.comment}</p>
+      </div>
+    ));
   };
 
-  /* ============================================================
-     TAB CONTENT RENDERER
-  ============================================================ */
+  /* ================= TAB CONTENT ================= */
   const renderContent = () => {
     switch (activeTab) {
       case "Description":
         return (
-          <motion.div
-            key="desc"
-            initial={{ opacity: 0, x: -30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ type: "spring", stiffness: 70 }}
-            className="text-gray-300 leading-relaxed"
-          >
-            <p>{product.desc || "No description available."}</p>
-          </motion.div>
-        );
-
-      case "Specifications":
-        return (
-          <motion.div
-            key="specs"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ type: "spring", stiffness: 70 }}
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             className="text-gray-300"
           >
-            {renderSpecifications()}
-          </motion.div>
+            {product.desc || "No description available."}
+          </motion.p>
         );
 
       case "Shipping":
         return (
-          <motion.div
-            key="shipping"
-            initial={{ opacity: 0, x: 30 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ type: "spring", stiffness: 70 }}
-            className="text-gray-300 leading-relaxed"
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-gray-300"
           >
-            <p>
-              Free shipping on orders above ₹999.  
-              Delivery estimated within{" "}
-              <span className="font-semibold text-white">4–7 business days</span>.
-              <br />
-              Hassle-free returns within 30 days.
-            </p>
-          </motion.div>
+            Free shipping within 4–7 business days. Easy returns available.
+          </motion.p>
         );
 
       case "Reviews":
         return (
           <motion.div
-            key="reviews"
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 70 }}
-            className="text-gray-400"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="space-y-4"
           >
-            <p className="italic mb-4">
-              Scroll down to read customer reviews or write your own.
-            </p>
-
-            <a
-              href="#reviews-section"
-              className="text-blue-400 hover:text-blue-300 underline"
-            >
-              Go to Reviews ↓
-            </a>
+            <ProductReviews product={product} />
           </motion.div>
         );
 
-      /* ------------------------- Q&A TAB ------------------------- */
       case "Q&A":
-        return (
-          <motion.div
-            key="qa"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ type: "spring", stiffness: 80 }}
-          >
-            <ProductQA product={product} />
-          </motion.div>
-        );
+        return <ProductQA product={product} />;
 
       default:
         return null;
     }
   };
 
-  /* ============================================================
-     TAB UI
-  ============================================================ */
   return (
     <div className="mt-10">
       {/* Tabs */}
-      <div className="flex space-x-6 border-b border-gray-700 pb-2 overflow-x-auto">
+      <div className="flex space-x-6 border-b border-gray-700 pb-2">
         {tabs.map((tab) => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            className={`pb-2 text-lg font-medium transition-colors whitespace-nowrap ${
+            className={`pb-2 text-lg ${
               activeTab === tab
                 ? "text-white border-b-2 border-red-500"
                 : "text-gray-400 hover:text-gray-200"
