@@ -1,11 +1,16 @@
 import { motion } from "framer-motion";
 
 const products = [
-  { id: 1, name: "Aero Runner", price: 129, img: "/images/sneaker2.jpg" },
-  { id: 2, name: "Nord Backpack", price: 89, img: "/images/bag.jpg" },
-  { id: 3, name: "Quartz Watch", price: 199, img: "/images/watch.jpg" },
-  { id: 4, name: "Arc Sunglasses", price: 79, img: "/images/sunglasses.jpg" },
-  { id: 5, name: "Studio Headset", price: 159, img: "/images/headphones.jpg" },
+  { id: 1, name: "Aero Runner", price: 129, img: "https://images.unsplash.com/photo-1559503125-48103276f1b3?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzF8fGFlcm8lMjBydW5uZXJ8ZW58MHx8MHx8fDA%3D" },
+  { id: 2, name: "Nord Backpack", price: 89, img: "https://images.unsplash.com/photo-1671764673184-740ebf2cd637?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NHx8bm9yZCUyMGJhY2twYWNrfGVufDB8fDB8fHww" },
+  { id: 3, name: "Quartz Watch", price: 199, img: "https://images.unsplash.com/photo-1651321225388-ced79c17d684?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fFF1YXJ0eiUyMHdhdGNofGVufDB8fDB8fHww" },
+  { id: 4, name: "Arc Sunglasses", price: 79, img: "https://images.unsplash.com/photo-1646299583323-68a0c364c588?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjB8fGFyYyUyMHN1bmdsYXNzZXN8ZW58MHx8MHx8fDA%3D" },
+  { id: 5, name: "Studio Headset", price: 159, img: "https://images.unsplash.com/photo-1761120359417-e7b609cef1ca?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fHRlY2glMjBhbmQlMjBhdWRpb3xlbnwwfHwwfHx8MA%3D%3D" },
+  { id: 6, name: "Comet Jacket", price: 149, img: "https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8Y29tZXQlMjBqYWNrZXR8ZW58MHx8MHx8fDA%3D" },
+  { id: 7, name: "Nike Sneakers", price: 119, img: "https://images.unsplash.com/photo-1465453869711-7e174808ace9?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHNuZWFrZXJzfGVufDB8fDB8fHww" },
+  { id: 8, name: "Vertex Earbuds", price: 99, img: "https://images.unsplash.com/photo-1655560378428-7605bda51749?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTZ8fGVhcmJ1ZHN8ZW58MHx8MHx8fDA%3D" },
+  { id: 9, name: "Pulse Fitness Band", price: 59, img: "https://images.unsplash.com/photo-1596236100208-5994c1c4b660?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDY4fHx8ZW58MHx8fHx8" },
+  { id: 10, name: "Nimbus Hoodie", price: 69, img: "https://images.unsplash.com/photo-1610582144787-eda2e6f293b4?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzF8fGhvb2RpZXxlbnwwfHwwfHx8MA%3D%3D" },
 ];
 
 export default function TrendingProducts() {

@@ -1,6 +1,6 @@
 // src/pages/Register.jsx
 import React, { useState } from "react";
-import { User, Mail, Lock, Phone, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Lock, Phone, Eye, EyeOff, MapPin } from "lucide-react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
@@ -15,6 +15,7 @@ export default function Register() {
     name: "",
     email: "",
     phone: "",
+    address: "",
     password: "",
   });
 
@@ -28,6 +29,14 @@ export default function Register() {
     }
     if (!formData.email.includes("@")) {
       toast.error("Enter a valid email");
+      return false;
+    }
+    if (formData.phone && formData.phone.length < 10) {
+      toast.error("Enter a valid phone number");
+      return false;
+    }
+    if (!formData.password) {
+      toast.error("Password is required");
       return false;
     }
     if (formData.password.length < 6) {
@@ -56,6 +65,7 @@ export default function Register() {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        address: "",
         role: "user",
         avatar: "",
         createdAt: serverTimestamp(),
@@ -127,6 +137,19 @@ export default function Register() {
               className="w-full bg-transparent border-b-2 border-gray-600 pl-10 py-2 text-white focus:border-green-500 focus:outline-none"
               onChange={(e) =>
                 setFormData({ ...formData, phone: e.target.value })
+              }
+            />
+          </div>
+
+          {/* Address */}
+          <div className="relative">
+            <MapPin className="absolute left-3 top-3 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Address (optional)"
+              className="w-full bg-transparent border-b-2 border-gray-600 pl-10 py-2 text-white focus:border-green-500 focus:outline-none"
+              onChange={(e) =>
+                setFormData({ ...formData, address: e.target.value })
               }
             />
           </div>

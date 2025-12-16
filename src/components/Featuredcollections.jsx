@@ -4,20 +4,20 @@ const tiles = [
   {
     title: "Urban Essentials",
     subtitle: "City-ready fits",
-    img: "/images/urban.jpg",
-    href: "/collections/urban"
+    img: "https://images.unsplash.com/photo-1618679522429-72ef1d31af31?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTc0fHx1cmJhbiUyMGVzc2VudGlhbHMlMjBkcmVzc3xlbnwwfHwwfHx8MA%3D%3D",
+    href: "/products"
   },
   {
     title: "Work • Flow",
     subtitle: "Elevated officewear",
-    img: "/images/work.jpg",
-    href: "/collections/work"
+    img: "https://plus.unsplash.com/premium_photo-1663088624029-5886b4fe8960?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8NTd8fGVsZXZhdGVkJTIwb2ZmaWNld2VhciUyMGRyZXNzfGVufDB8fDB8fHww",
+    href: "/products"
   },
   {
     title: "Tech & Audio",
     subtitle: "Sound • Speed • Style",
-    img: "/images/tech.jpg",
-    href: "/collections/tech"
+    img: "https://images.unsplash.com/photo-1761120359417-e7b609cef1ca?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTh8fHRlY2glMjBhbmQlMjBhdWRpb3xlbnwwfHwwfHx8MA%3D%3D",
+    href: "/products"
   },
 ];
 

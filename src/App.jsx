@@ -51,15 +51,13 @@ import { fetchWishlistFS } from "./firebase/services/wishlistService";
 /* Redux */
 import { useDispatch } from "react-redux";
 import { setUser, clearUser, setLoading } from "./redux/authSlice";
-import {
-  setWishlist,
-  clearWishlist,
-  setWishlistLoading,
-} from "./redux/wishlistSlice";
+import { setWishlist, clearWishlist, setWishlistLoading, } from "./redux/wishlistSlice";
+import { clearCart } from "./redux/cartSlice";
 
 /* Animations */
 import AOS from "aos";
 import "aos/dist/aos.css";
+
 
 AOS.init();
 
@@ -77,6 +75,7 @@ function App() {
         if (!firebaseUser) {
           dispatch(clearUser());
           dispatch(clearWishlist()); // 🧹 clear wishlist on logout
+          dispatch(clearCart()); // 🧹 clear cart on logout
           return;
         }
 
@@ -105,6 +104,8 @@ function App() {
             uid: firebaseUser.uid,
             email: firebaseUser.email,
             name: data.name || "",
+            phone: data.phone || "",
+            address: data.address || "",
             avatar: data.avatar || "",
             role: (data.role || "user").trim(),
             provider: data.provider || "password",
@@ -145,53 +146,22 @@ function App() {
       <Routes>
         {/* ================= PUBLIC ================= */}
         <Route path="/" element={<Home />} />
-        <Route path="/homepage" element={<HomePage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/products/:id" element={<ProductDetailsPage />} />
         <Route path="/about" element={<About />} />
         <Route path="/contact" element={<Contact />} />
-        <Route path="/cart" element={<CartPage />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
-        <Route path="/wishlist" element={<Wishlist />} />
-
+        
         {/* ================= USER PROTECTED ================= */}
-        <Route
-          path="/checkout"
-          element={
-            <ProtectedRoute>
-              <CheckoutPage />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/profile"
-          element={
-            <ProtectedRoute>
-              <ProfileSection />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/my-orders"
-          element={
-            <ProtectedRoute>
-              <MyOrders />
-            </ProtectedRoute>
-          }
-        />
-
-        <Route
-          path="/order/:orderId"
-          element={
-            <ProtectedRoute>
-              <OrderDetails />
-            </ProtectedRoute>
-          }
-        />
+        <Route path="/homepage" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+        <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
+        <Route path="/products/:id" element={<ProtectedRoute><ProductDetailsPage /></ProtectedRoute>} />
+        <Route path="/checkout" element={<ProtectedRoute><CheckoutPage /></ProtectedRoute>} />
+        <Route path="/profile" element={<ProtectedRoute><ProfileSection /></ProtectedRoute>} />
+        <Route path="/my-orders" element={<ProtectedRoute><MyOrders /></ProtectedRoute>} />
+        <Route path="/order/:orderId" element={<ProtectedRoute><OrderDetails /></ProtectedRoute>} />
+        <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
+        <Route path="/cart" element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
 
         {/* ================= ADMIN ================= */}
         <Route
