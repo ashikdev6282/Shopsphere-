@@ -73,6 +73,7 @@
   flex-direction: column;
   gap: 10px;
   margin-top: 6px;
+  height: calc(100vh - 220px);
 }
 
 /* single message */

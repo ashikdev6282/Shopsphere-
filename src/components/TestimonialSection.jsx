@@ -1,9 +1,9 @@
 import { motion } from "framer-motion";
 
 const reviews = [
-  { name: "Aisha K.", text: "Absolutely premium feel. Checkout was smooth and fast!", avatar: "/images/u1.jpg" },
-  { name: "Marco R.", text: "The curation is top-tier. My new daily backpack is perfect.", avatar: "/images/u2.jpg" },
-  { name: "Lena P.", text: "Animations make the site feel alive. Also, great deals!", avatar: "/images/u3.jpg" },
+  { name: "Aisha K.", text: "Absolutely premium feel. Checkout was smooth and fast!", avatar: "https://plus.unsplash.com/premium_photo-1689564003745-946f35267ffe?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDd8fHxlbnwwfHx8fHw%3D" },
+  { name: "Marco R.", text: "The curation is top-tier. My new daily backpack is perfect.", avatar: "https://images.unsplash.com/photo-1568602471122-7832951cc4c5?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTB8fHBlcnNvbnxlbnwwfHwwfHx8MA%3D%3D" },
+  { name: "Lena P.", text: "Animations make the site feel alive. Also, great deals!", avatar: "https://images.unsplash.com/photo-1499952127939-9bbf5af6c51c?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fHBlcnNvbnxlbnwwfHwwfHx8MA%3D%3D" },
 ];
 
 export default function Testimonials() {

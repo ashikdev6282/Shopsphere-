@@ -1,10 +1,10 @@
 import { motion } from "framer-motion";
 
 const cats = [
-  { label: "Men", img: "/images/men.jpg", href: "/category/men" },
-  { label: "Women", img: "/images/women.jpg", href: "/category/women" },
-  { label: "Accessories", img: "/images/accessories.jpg", href: "/category/accessories" },
-  { label: "Electronics", img: "/images/tech.jpg", href: "/category/electronics" },
+  { label: "Men", img: "https://plus.unsplash.com/premium_photo-1687989650785-7edeaaddc7a7?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTN8fG1lbnMlMjBmYXNoaW9ufGVufDB8fDB8fHww", href: "/products" },
+  { label: "Women", img: "https://plus.unsplash.com/premium_photo-1689575249162-beed0ac1f015?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjV8fHdvbWVuJTIwZmFzaGlvbnxlbnwwfHwwfHx8MA%3D%3D", href: "/products" },
+  { label: "Accessories", img: "https://images.unsplash.com/3/www.madebyvadim.com.jpg?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YWNjZXNzb3JpZXN8ZW58MHx8MHx8fDA%3D", href: "/products" },
+  { label: "Electronics", img: "https://images.unsplash.com/photo-1498049794561-7780e7231661?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8ZWxlY3Ryb25pY3N8ZW58MHx8MHx8fDA%3D", href: "/products" },
 ];
 
 export default function CategoriesShowcase() {

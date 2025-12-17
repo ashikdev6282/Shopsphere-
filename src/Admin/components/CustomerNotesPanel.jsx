@@ -1,159 +1,179 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useRef,
+  useState,
+  useLayoutEffect,
+} from "react";
 import { Send, MessageCircle, X } from "lucide-react";
+import {
+  collection,
+  addDoc,
+  onSnapshot,
+  orderBy,
+  query,
+  serverTimestamp,
+  doc,
+  updateDoc,
+  getDocs,
+} from "firebase/firestore";
+import { db } from "../../firebase/firebase_config";
 import "./customernotepanel.css";
-
-/**
- * CustomerNotesPanel
- * Props:
- *  - isOpen (bool) : whether panel is visible
- *  - onClose (fn)
- *  - customer (object) : { id, name, email, ... }
- *
- * Behavior:
- *  - stores messages per-customer in localStorage (so frontend-only persistence)
- *  - simulates "other admin typing" and auto-replies
- *  - typing indicator for remote user
- */
-
-const AUTO_REPLIES = [
-  "Customer replied: 'Thanks, will confirm soon!'",
-  "System note: Order #4521 was delivered.",
-  "Admin 3: Let's mark this customer as high-priority.",
-  "System alert: Payment verification completed.",
-];
-
-const STORAGE_KEY = (customerId) => `customer_notes_${customerId}`;
 
 export default function CustomerNotesPanel({ isOpen, onClose, customer }) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
-  const [remoteTyping, setRemoteTyping] = useState(false);
-  const [autoIdx, setAutoIdx] = useState(0);
-  const messagesRef = useRef(null);
-  const autoTimerRef = useRef(null);
+  const [userTyping, setUserTyping] = useState(false);
 
-  // load messages when customer changes or panel opens
+  const messagesEndRef = useRef(null);
+
+  const chatId = customer?.id ? String(customer.id) : null;
+  const chatRef = chatId ? doc(db, "supportChats", chatId) : null;
+
+  /* ================= REAL-TIME MESSAGES ================= */
   useEffect(() => {
-    if (!customer) return;
-    const saved = window.localStorage.getItem(STORAGE_KEY(customer.id));
-    setMessages(saved ? JSON.parse(saved) : [
-      // optional starter messages per-customer; keep small
-      { id: 1, sender: "Admin 1", text: "Hey team, remember to follow up tomorrow.", time: "09:20 AM" },
-      { id: 2, sender: "Admin 2", text: "Sure — I'll draft an email tonight.", time: "09:25 AM" },
-    ]);
-    setAutoIdx(0);
-  }, [customer]);
+    if (!chatId || !isOpen) return;
 
-  // persist messages to localStorage on change
+    const q = query(
+      collection(db, "supportChats", chatId, "messages"),
+      orderBy("createdAt", "asc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      const list = snap.docs.map((d) => ({
+        id: d.id,
+        ...d.data(),
+      }));
+      setMessages(list);
+    });
+
+    return () => unsub();
+  }, [chatId, isOpen]);
+
+  /* ================= USER TYPING (ADMIN VIEW) ================= */
   useEffect(() => {
-    if (!customer) return;
-    window.localStorage.setItem(STORAGE_KEY(customer.id), JSON.stringify(messages));
-    // scroll to bottom
-    messagesRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages, customer]);
+    if (!chatRef || !isOpen) return;
 
-  // simulate remote typing + auto reply while panel is open
+    const unsub = onSnapshot(chatRef, (snap) => {
+      const data = snap.data();
+      setUserTyping(Boolean(data?.typing?.user));
+    });
+
+    return () => unsub();
+  }, [chatRef, isOpen]);
+
+  /* ================= MARK USER MSGS READ + RESET ADMIN UNREAD ================= */
   useEffect(() => {
-    if (!isOpen || !customer) return;
-    // every 12s (only while auto replies remain) simulate typing then add message
-    autoTimerRef.current = setInterval(() => {
-      if (autoIdx >= AUTO_REPLIES.length) return;
-      setRemoteTyping(true);
-      // typing duration
-      setTimeout(() => {
-        setRemoteTyping(false);
-        const newMsg = {
-          id: Date.now(),
-          sender: "System Bot",
-          text: AUTO_REPLIES[autoIdx],
-          time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-        };
-        setMessages((m) => [...m, newMsg]);
-        setAutoIdx((i) => i + 1);
-      }, 2200 + Math.random() * 1800);
-    }, 12000);
-    return () => clearInterval(autoTimerRef.current);
-  }, [isOpen, customer, autoIdx]);
+    if (!chatId || !isOpen || !chatRef) return;
 
-  // send message (You)
-  const handleSend = (e) => {
-    e?.preventDefault();
-    const trimmed = text.trim();
-    if (!trimmed || !customer) return;
-    const msg = {
-      id: Date.now(),
-      sender: "You",
-      text: trimmed,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    const markRead = async () => {
+      const snap = await getDocs(
+        collection(db, "supportChats", chatId, "messages")
+      );
+
+      snap.forEach((d) => {
+        const data = d.data();
+        if (data.sender === "user" && data.read === false) {
+          updateDoc(d.ref, { read: true });
+        }
+      });
+
+      await updateDoc(chatRef, {
+        "unread.admin": 0,
+      });
     };
-    setMessages((m) => [...m, msg]);
+
+    markRead();
+  }, [chatId, isOpen, chatRef]);
+
+  /* ================= AUTO-SCROLL (FIXED) ================= */
+  useLayoutEffect(() => {
+    messagesEndRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "end",
+    });
+  }, [messages, userTyping]);
+
+  /* ================= SEND MESSAGE (ADMIN) ================= */
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (!text.trim() || !chatId || !chatRef) return;
+
+    await addDoc(collection(db, "supportChats", chatId, "messages"), {
+      sender: "admin",
+      text: text.trim(),
+      createdAt: serverTimestamp(),
+      read: false,
+    });
+
+    await updateDoc(chatRef, {
+      "unread.user": (messages.filter(m => m.sender === "admin").length || 0) + 1,
+      "typing.admin": false,
+      updatedAt: serverTimestamp(),
+    });
+
     setText("");
-    // optional immediate local "echo" of remote typing - commented out because auto-replies handle system messages
-    // setRemoteTyping(true); setTimeout(()=>setRemoteTyping(false), 1400)
   };
 
-  if (!customer) return null; // nothing to show
+  /* ================= ADMIN TYPING ================= */
+  const handleTyping = async (value) => {
+    if (!chatRef) return;
+    await updateDoc(chatRef, {
+      "typing.admin": value,
+      updatedAt: serverTimestamp(),
+    });
+  };
+
+  if (!customer) return null;
 
   return (
     <>
-      {/* overlay clickable to close (z-index beneath panel) */}
       {isOpen && <div className="cnp-overlay" onClick={onClose} />}
 
-      <aside className={`customer-notes-panel ${isOpen ? "open" : ""}`} aria-hidden={!isOpen}>
+      <aside className={`customer-notes-panel ${isOpen ? "open" : ""}`}>
         <header className="panel-header">
           <div className="left">
             <MessageCircle size={18} />
-            <div className="panel-title">
-              <div className="title">Collaboration Panel</div>
+            <div>
+              <div className="title">Live Support</div>
               <div className="subtitle">{customer.name}</div>
             </div>
           </div>
-          <button className="close-btn" onClick={onClose} aria-label="Close">
+          <button onClick={onClose}>
             <X />
           </button>
         </header>
 
         <div className="panel-body">
-          <div className="customer-meta">
-            <div className="meta-name">{customer.name}</div>
-            <div className="meta-email">{customer.email}</div>
-          </div>
-
           <div className="messages">
-            {messages.map((m) => (
-              <div key={m.id} className={`message ${m.sender === "You" ? "sent" : "recv"}`}>
-                <div className="msg-head">
-                  <span className="msg-sender">{m.sender}</span>
-                  <span className="msg-time">{m.time}</span>
-                </div>
+            {messages.map((m, i) => (
+              <div
+                key={m.id}
+                ref={i === messages.length - 1 ? messagesEndRef : null}
+                className={`message ${m.sender === "admin" ? "sent" : "recv"}`}
+              >
                 <div className="msg-text">{m.text}</div>
               </div>
             ))}
 
-            {remoteTyping && (
-              <div className="message typing recv">
-                <div className="msg-head">
-                  <span className="msg-sender">System Bot</span>
-                </div>
-                <div className="msg-text typing-dots">
-                  <span /> <span /> <span />
-                </div>
+            {userTyping && (
+              <div className="message recv typing">
+                <div className="msg-text">User is typing…</div>
               </div>
             )}
-
-            <div ref={messagesRef} />
           </div>
         </div>
 
         <form className="panel-footer" onSubmit={handleSend}>
           <input
-            aria-label="Type a message"
-            placeholder="Type a message..."
+            placeholder="Reply to customer…"
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            className="input"
+            onChange={(e) => {
+              setText(e.target.value);
+              handleTyping(true);
+            }}
+            onBlur={() => handleTyping(false)}
           />
-          <button type="submit" className="send-btn" title="Send">
+          <button type="submit">
             <Send size={16} />
           </button>
         </form>

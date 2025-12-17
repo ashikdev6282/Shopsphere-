@@ -1,96 +1,132 @@
-import React, { useState, useEffect, useRef } from "react";
-import "./usersupportchat.css";
+import React, { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { FiSend, FiMessageSquare, FiX } from "react-icons/fi";
+import {
+  collection,
+  doc,
+  setDoc,
+  addDoc,
+  query,
+  orderBy,
+  onSnapshot,
+  serverTimestamp,
+  updateDoc,
+} from "firebase/firestore";
+import { db } from "../firebase/firebase_config";
+import "./usersupportchat.css";
 
-const UserSupportChat = ({ user }) => {
-  // Safe user ID (Firebase or Redux)
-  const userId = user?.id || user?.uid || null;
-
-  // If user not logged in → do NOT show chat
-  if (!userId) return null;
+const UserSupportChat = () => {
+  const { user, loading } = useSelector((s) => s.auth);
+  const userId = user?.uid;
 
   const [isOpen, setIsOpen] = useState(false);
-
-  const [messages, setMessages] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem(`chat_${userId}`)) || [];
-    } catch {
-      return [];
-    }
-  });
-
+  const [messages, setMessages] = useState([]);
   const [input, setInput] = useState("");
-  const [isTyping, setIsTyping] = useState(false);
+  const [adminTyping, setAdminTyping] = useState(false);
+  const [adminStatus, setAdminStatus] = useState("offline");
   const messagesEndRef = useRef(null);
 
-  // Auto scroll
+  /* ================= CREATE CHAT ================= */
+  useEffect(() => {
+    if (!userId) return;
+
+    setDoc(
+      doc(db, "supportChats", userId),
+      {
+        userId,
+        userEmail: user.email,
+        typing: { user: false, admin: false },
+        presence: { admin: "offline" },
+        createdAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+  }, [userId, user?.email]);
+
+  /* ================= LISTEN CHAT DOC ================= */
+  useEffect(() => {
+    if (!userId) return;
+
+    const chatRef = doc(db, "supportChats", userId);
+
+    const unsub = onSnapshot(chatRef, (snap) => {
+      const data = snap.data();
+      setAdminTyping(data?.typing?.admin || false);
+      setAdminStatus(data?.presence?.admin || "offline");
+    });
+
+    return () => unsub();
+  }, [userId]);
+
+  /* ================= LISTEN MESSAGES ================= */
+  useEffect(() => {
+    if (!userId) return;
+
+    const q = query(
+      collection(db, "supportChats", userId, "messages"),
+      orderBy("createdAt", "asc")
+    );
+
+    const unsub = onSnapshot(q, (snap) => {
+      setMessages(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    return () => unsub();
+  }, [userId]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, adminTyping]);
 
-  const handleSend = () => {
-    if (!input.trim()) return;
+  const handleSend = async () => {
+    if (!input.trim() || !userId) return;
 
-    const newMessage = {
-      id: Date.now(),
+    await addDoc(collection(db, "supportChats", userId, "messages"), {
       sender: "user",
-      text: input,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
+      text: input.trim(),
+      createdAt: serverTimestamp(),
+      read: false,
+    });
 
-    const updatedMessages = [...messages, newMessage];
-
-    setMessages(updatedMessages);
-    localStorage.setItem(`chat_${userId}`, JSON.stringify(updatedMessages));
     setInput("");
-
-    // Fake admin reply
-    setIsTyping(true);
-    setTimeout(() => {
-      const reply = {
-        id: Date.now() + 1,
-        sender: "admin",
-        text: "Thank you! Support will reply shortly.",
-        time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-
-      const newChat = [...updatedMessages, reply];
-      setMessages(newChat);
-      localStorage.setItem(`chat_${userId}`, JSON.stringify(newChat));
-      setIsTyping(false);
-    }, 1500);
+    updateDoc(doc(db, "supportChats", userId), {
+      "typing.user": false,
+    });
   };
+
+  const handleTyping = async (val) => {
+    if (!userId) return;
+    await updateDoc(doc(db, "supportChats", userId), {
+      "typing.user": val,
+    });
+  };
+
+  if (loading || !userId) return null;
 
   return (
     <div className="support-chat-wrapper">
-
-      <button
-        className={`chat-toggle-btn ${isOpen ? "active" : ""}`}
-        onClick={() => setIsOpen(!isOpen)}
-      >
-        {isOpen ? <FiX size={20} /> : <FiMessageSquare size={22} />}
+      <button className="chat-toggle-btn" onClick={() => setIsOpen(!isOpen)}>
+        {isOpen ? <FiX /> : <FiMessageSquare />}
       </button>
 
       {isOpen && (
-        <div className="chat-box glass-card">
+        <div className="chat-box">
           <div className="chat-header">
-            <span>💬 Support Chat</span>
+            💬 Support Chat
+            <span className={`admin-status ${adminStatus}`}>
+              {adminStatus === "online" ? "🟢 Online" : "⚫ Offline"}
+            </span>
           </div>
 
           <div className="chat-body">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`chat-msg ${msg.sender}`}>
-                <div className="msg-text">{msg.text}</div>
-                <div className="msg-time">{msg.time}</div>
+            {messages.map((m) => (
+              <div key={m.id} className={`chat-msg ${m.sender}`}>
+                {m.text}
               </div>
             ))}
 
-            {isTyping && (
-              <div className="chat-msg admin typing-indicator">
-                <div className="msg-text">
-                  <span></span><span></span><span></span>
-                </div>
-              </div>
+            {adminTyping && (
+              <div className="chat-msg admin typing">Admin is typing…</div>
             )}
 
             <div ref={messagesEndRef} />
@@ -98,15 +134,16 @@ const UserSupportChat = ({ user }) => {
 
           <div className="chat-input">
             <input
-              type="text"
               value={input}
-              placeholder="Type your message..."
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                handleTyping(true);
+              }}
+              onBlur={() => handleTyping(false)}
               onKeyDown={(e) => e.key === "Enter" && handleSend()}
+              placeholder="Type your message..."
             />
-            <button onClick={handleSend}>
-              <FiSend />
-            </button>
+            <button onClick={handleSend}><FiSend /></button>
           </div>
         </div>
       )}

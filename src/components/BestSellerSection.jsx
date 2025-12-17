@@ -1,12 +1,12 @@
 import { motion } from "framer-motion";
 
 const best = [
-  { id: 1, name: "Classic Blazer", price: 210, img: "/images/formal-suit.jpg" },
-  { id: 2, name: "Floral Midi Skirt", price: 98, img: "/images/floral-skirt.jpg" },
-  { id: 3, name: "Red Gown", price: 180, img: "/images/red-gown.jpg" },
-  { id: 4, name: "Table Lamp", price: 60, img: "/images/lamp.jpg" },
-  { id: 5, name: "Bluetooth Speaker", price: 99, img: "/images/speaker.jpg" },
-  { id: 6, name: "Cushion Set", price: 45, img: "/images/cushion.jpg" },
+  { id: 1, name: "Classic Blazer", price: 210, img: "https://images.unsplash.com/photo-1680690599369-8878cf3eeb59?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzV8fGNsYXNzaWMlMjBibGF6ZXJ8ZW58MHx8MHx8fDA%3D" },
+  { id: 2, name: "Floral Midi Skirt", price: 98, img: "https://images.unsplash.com/photo-1679654233614-1a797739c4f9?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fGZsb3JhbCUyMHNraXJ0c3xlbnwwfHwwfHx8MA%3D%3D" },
+  { id: 3, name: "Red Gown", price: 180, img: "https://images.unsplash.com/photo-1765229280941-696a549bb3dc?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8ODN8fHJlZCUyMGdvd258ZW58MHx8MHx8fDA%3D" },
+  { id: 4, name: "Table Lamp", price: 60, img: "https://images.unsplash.com/photo-1621177555452-bedbe4c28879?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MjR8fHRhYmxlJTIwbGFtcHxlbnwwfHwwfHx8MA%3D%3D" },
+  { id: 5, name: "Bluetooth Speaker", price: 99, img: "https://images.unsplash.com/photo-1593906106036-9fa76d556af3?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzB8fGJsdWV0b290aCUyMHNwZWFrZXJ8ZW58MHx8MHx8fDA%3D" },
+  { id: 6, name: "Cushion Set", price: 45, img: "https://images.unsplash.com/photo-1632771094874-eb4eb25d105b?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTF8fGN1c2hpb24lMjBzZXR8ZW58MHx8MHx8fDA%3D" },
 ];
 
 export default function BestSellers() {
