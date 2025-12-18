@@ -1,13 +1,22 @@
 // src/components/layout/Header.jsx
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { Menu, X, ShoppingCart, User, Search } from "lucide-react";
+import {
+  Menu,
+  X,
+  ShoppingCart,
+  User,
+  Search,
+  Home,
+  Info,
+  Phone,
+  Package,
+} from "lucide-react";
 
 const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
-  // Add scroll effect
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -18,55 +27,44 @@ const Header = () => {
     <header
       className={`sticky top-0 z-50 transition-all duration-300 ${
         scrolled
-          ? "bg-gradient-to-r from-zinc-600 via-black to-zinc-800 text-white backdrop-blur-md shadow-md"
-          : "bg-gradient-to-r from-zinc-600 via-black to-zinc-800 text-white"
-      }`}
+          ? "backdrop-blur-md shadow-lg bg-black/70"
+          : "bg-gradient-to-r from-zinc-700 via-black to-zinc-800"
+      } text-white`}
     >
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
         {/* Logo */}
         <Link
           to="/"
-          className="text-3xl font-bold tracking-tight bg-gradient-to-r from-zinc-600 via-pink to-pink-500 bg-clip-text text-transparent"
+          className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-400 to-red-500 bg-clip-text text-transparent"
         >
           ShopSphere
         </Link>
 
         {/* Desktop Nav */}
         <nav className="hidden md:flex items-center space-x-8 font-medium text-lg">
-          <Link to="/homepage" className="relative group">
-            Home
-            <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-red-500 group-hover:w-full transition-all"></span>
-          </Link>
-          <Link to="/products" className="relative group">
-            Products
-            <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-red-500 group-hover:w-full transition-all"></span>
-          </Link>
-          <Link to="/about" className="relative group">
-            About
-            <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-red-500 group-hover:w-full transition-all"></span>
-          </Link>
-          <Link to="/contact" className="relative group">
-            Contact
-            <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-red-500 group-hover:w-full transition-all"></span>
-          </Link>
+          {["Home", "Products", "About", "Contact"].map((item) => (
+            <Link
+              key={item}
+              to={item === "Home" ? "/homepage" : `/${item.toLowerCase()}`}
+              className="relative group"
+            >
+              {item}
+              <span className="absolute left-0 -bottom-1 w-0 h-0.5 bg-red-500 group-hover:w-full transition-all"></span>
+            </Link>
+          ))}
         </nav>
 
-        {/* Right Side Actions */}
+        {/* Desktop Actions */}
         <div className="hidden md:flex items-center space-x-5">
-          {/* Search */}
           <div className="relative">
             <input
               type="text"
               placeholder="Search..."
-              className="pl-10 pr-4 py-1.5 rounded-full border border-gray-300 focus:outline-none focus:ring-2 focus:ring-red-500"
+              className="pl-10 pr-4 py-1.5 rounded-full bg-white/90 text-black focus:outline-none focus:ring-2 focus:ring-red-500"
             />
-            <Search
-              size={18}
-              className="absolute left-3 top-2.5 text-gray-500"
-            />
+            <Search size={18} className="absolute left-3 top-2.5 text-gray-600" />
           </div>
 
-          {/* Cart */}
           <Link to="/cart" className="relative">
             <ShoppingCart size={24} className="hover:text-red-500 transition" />
             <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1.5 rounded-full">
@@ -74,47 +72,77 @@ const Header = () => {
             </span>
           </Link>
 
-          {/* User */}
           <Link to="/profile">
             <User size={24} className="hover:text-red-500 transition" />
           </Link>
         </div>
 
-        {/* Mobile Menu Toggle */}
-        <div className="md:hidden">
-          <button onClick={() => setMenuOpen(!menuOpen)} className="text-gray-700">
-            {menuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-        </div>
+        {/* Mobile Toggle */}
+        <button
+          onClick={() => setMenuOpen(!menuOpen)}
+          className="md:hidden p-2 rounded-lg bg-white/10 backdrop-blur hover:bg-white/20 transition"
+        >
+          {menuOpen ? <X size={26} /> : <Menu size={26} />}
+        </button>
       </div>
 
-      {/* Mobile Nav */}
-      {menuOpen && (
-        <nav className="md:hidden px-4 pb-4 space-y-3 text-gray-700 font-medium bg-white shadow">
-          <Link to="/homepage" className="block hover:text-red-500">
-            Home
-          </Link>
-          <Link to="/products" className="block hover:text-red-500">
-            Products
-          </Link>
-          <Link to="/about" className="block hover:text-red-500">
-            About
-          </Link>
-          <Link to="/contact" className="block hover:text-red-500">
-            Contact
-          </Link>
-          <div className="flex space-x-6 pt-3 border-t">
-            <Link to="/cart">
-              <ShoppingCart size={22} />
+      {/* ================= MOBILE MENU ================= */}
+      <div
+        className={`md:hidden overflow-hidden transition-all duration-500 ${
+          menuOpen ? "max-h-[500px] opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <div className="mx-4 mt-2 mb-4 rounded-2xl bg-zinc-900/95 backdrop-blur-xl border border-white/10 shadow-xl p-5 space-y-5">
+          {/* Search */}
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full pl-10 pr-4 py-2 rounded-xl bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-red-500"
+            />
+            <Search size={18} className="absolute left-3 top-2.5 text-gray-400" />
+          </div>
+
+          {/* Nav Links */}
+          <div className="space-y-3">
+            <MobileLink to="/homepage" icon={<Home size={18} />} label="Home" />
+            <MobileLink to="/products" icon={<Package size={18} />} label="Products" />
+            <MobileLink to="/about" icon={<Info size={18} />} label="About" />
+            <MobileLink to="/contact" icon={<Phone size={18} />} label="Contact" />
+          </div>
+
+          {/* Actions */}
+          <div className="flex justify-between pt-4 border-t border-white/10">
+            <Link
+              to="/cart"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+            >
+              <ShoppingCart size={20} />
+              Cart
             </Link>
-            <Link to="/profile">
-              <User size={22} />
+            <Link
+              to="/profile"
+              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition"
+            >
+              <User size={20} />
+              Profile
             </Link>
           </div>
-        </nav>
-      )}
+        </div>
+      </div>
     </header>
   );
 };
+
+/* ================= SMALL MOBILE LINK COMPONENT ================= */
+const MobileLink = ({ to, icon, label }) => (
+  <Link
+    to={to}
+    className="flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 transition"
+  >
+    <span className="text-red-400">{icon}</span>
+    <span className="text-lg font-medium">{label}</span>
+  </Link>
+);
 
 export default Header;
