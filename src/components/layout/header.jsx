@@ -1,6 +1,6 @@
-// src/components/layout/Header.jsx
 import { Link } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 import {
   Menu,
   X,
@@ -17,6 +17,14 @@ const Header = () => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
+  /* ================= CART FROM REDUX ================= */
+  const cartItems = useSelector((state) => state.cart.items || []);
+  const cartCount = cartItems.reduce(
+    (total, item) => total + (item.quantity || 1),
+    0
+  );
+
+  /* ================= SCROLL EFFECT ================= */
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 20);
     window.addEventListener("scroll", handleScroll);
@@ -32,7 +40,7 @@ const Header = () => {
       } text-white`}
     >
       <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-        {/* Logo */}
+        {/* ================= LOGO ================= */}
         <Link
           to="/"
           className="text-3xl font-bold tracking-tight bg-gradient-to-r from-pink-400 to-red-500 bg-clip-text text-transparent"
@@ -40,7 +48,7 @@ const Header = () => {
           ShopSphere
         </Link>
 
-        {/* Desktop Nav */}
+        {/* ================= DESKTOP NAV ================= */}
         <nav className="hidden md:flex items-center space-x-8 font-medium text-lg">
           {["Home", "Products", "About", "Contact"].map((item) => (
             <Link
@@ -54,8 +62,9 @@ const Header = () => {
           ))}
         </nav>
 
-        {/* Desktop Actions */}
+        {/* ================= DESKTOP ACTIONS ================= */}
         <div className="hidden md:flex items-center space-x-5">
+          {/* Search */}
           <div className="relative">
             <input
               type="text"
@@ -65,19 +74,23 @@ const Header = () => {
             <Search size={18} className="absolute left-3 top-2.5 text-gray-600" />
           </div>
 
+          {/* Cart */}
           <Link to="/cart" className="relative">
             <ShoppingCart size={24} className="hover:text-red-500 transition" />
-            <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1.5 rounded-full">
-              2
-            </span>
+            {cartCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-red-500 text-white text-xs px-1.5 rounded-full animate-pulse">
+                {cartCount}
+              </span>
+            )}
           </Link>
 
+          {/* Profile */}
           <Link to="/profile">
             <User size={24} className="hover:text-red-500 transition" />
           </Link>
         </div>
 
-        {/* Mobile Toggle */}
+        {/* ================= MOBILE TOGGLE ================= */}
         <button
           onClick={() => setMenuOpen(!menuOpen)}
           className="md:hidden p-2 rounded-lg bg-white/10 backdrop-blur hover:bg-white/20 transition"
@@ -106,7 +119,11 @@ const Header = () => {
           {/* Nav Links */}
           <div className="space-y-3">
             <MobileLink to="/homepage" icon={<Home size={18} />} label="Home" />
-            <MobileLink to="/products" icon={<Package size={18} />} label="Products" />
+            <MobileLink
+              to="/products"
+              icon={<Package size={18} />}
+              label="Products"
+            />
             <MobileLink to="/about" icon={<Info size={18} />} label="About" />
             <MobileLink to="/contact" icon={<Phone size={18} />} label="Contact" />
           </div>
@@ -115,11 +132,17 @@ const Header = () => {
           <div className="flex justify-between pt-4 border-t border-white/10">
             <Link
               to="/cart"
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
+              className="relative flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition"
             >
               <ShoppingCart size={20} />
               Cart
+              {cartCount > 0 && (
+                <span className="ml-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
+                  {cartCount}
+                </span>
+              )}
             </Link>
+
             <Link
               to="/profile"
               className="flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-500/10 text-blue-400 hover:bg-blue-500 hover:text-white transition"
@@ -134,7 +157,7 @@ const Header = () => {
   );
 };
 
-/* ================= SMALL MOBILE LINK COMPONENT ================= */
+/* ================= MOBILE LINK ================= */
 const MobileLink = ({ to, icon, label }) => (
   <Link
     to={to}
