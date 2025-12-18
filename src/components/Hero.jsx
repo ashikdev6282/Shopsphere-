@@ -63,6 +63,7 @@ export default function Hero() {
             { title: "Statement Sneakers", img: "https://images.unsplash.com/photo-1581017316471-1f6ef7ce6fd3?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Nzd8fHN0YXRlbWVudCUyMHNuZWFrZXJzfGVufDB8fDB8fHww" },
             { title: "Minimal Smartwatch", img: "https://images.unsplash.com/photo-1641457474717-26e699f45414?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTJ8fG1pbmltYWwlMjBzbWFydHdhdGNofGVufDB8fDB8fHww" },
             { title: "Studio Headphones", img: "https://images.unsplash.com/photo-1737886099638-82bea680e9a9?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8N3x8c3R1ZGlvJTIwaGVhZHBob25lc3xlbnwwfHwwfHx8MA%3D%3D" },
+            { title: "Sleek Sunglasses", img: "https://images.unsplash.com/photo-1722842529792-abe6d32f18b2?w=600&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MzB8fHNsZWVrJTIwc3VuZ2xhc3Nlc3xlbnwwfHwwfHx8MA%3D%3D" },
           ].map((p, i) => (
             <motion.div
               key={i}
